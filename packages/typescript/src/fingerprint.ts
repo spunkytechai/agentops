@@ -2,10 +2,27 @@
 export type ActionValue = null | boolean | string | number | readonly ActionValue[] | ActionObject;
 export interface ActionObject { readonly [key: string]: ActionValue }
 
-const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+function assertWellFormedUnicode(value: string, path: string): void {
+  for (let index = 0; index < value.length; index++) {
+    const unit = value.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (next < 0xdc00 || next > 0xdfff) {
+        throw new TypeError(`${path} contains an unpaired Unicode surrogate`);
+      }
+      index++;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      throw new TypeError(`${path} contains an unpaired Unicode surrogate`);
+    }
+  }
+}
 
 function normalize(value: unknown, path: string): ActionValue {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    assertWellFormedUnicode(value, path);
+    return value;
+  }
   if (typeof value === "number") {
     if (!Number.isSafeInteger(value)) {
       throw new TypeError(`${path} numbers must be safe integers; use integer minor units or strings`);
@@ -23,6 +40,7 @@ function normalize(value: unknown, path: string): ActionValue {
     const source = value as Record<string, unknown>;
     const result: Record<string, ActionValue> = {};
     for (const key of Object.keys(source).sort()) {
+      assertWellFormedUnicode(key, `${path} object key`);
       result[key] = normalize(source[key], `${path}.${key}`);
     }
     return result;
