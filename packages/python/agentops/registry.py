@@ -1,6 +1,5 @@
 """Versioned in-memory registry for agent definitions."""
 from dataclasses import dataclass
-from typing import Sequence
 
 
 class AgentAlreadyRegisteredError(ValueError):
