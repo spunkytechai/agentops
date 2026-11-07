@@ -6,7 +6,7 @@ The Python and TypeScript SDKs share five conceptual primitives:
 1. **Agent definition:** immutable agent ID, version, description, and declared tool identifiers.
 2. **Agent registry:** process-local lookup keyed by exact agent ID and version; duplicate versions are rejected.
 3. **Policy:** exact tool identifiers, global allow/deny sets, and principal-scoped allow/deny rules.
-4. **Execution boundary:** authorization happens before an operation is invoked.
+4. **Execution boundary:** authorization happens before an operation is invoked; asynchronous calls can be bounded by a timeout.
 5. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink.
 
 Core packages are dependency-light and provider-neutral.
@@ -23,6 +23,9 @@ The initial registry is in-memory and local to one process. It supports exact ve
 
 An explicit deny always wins, including when a global allow also matches. Scoped rules match only the exact principal and tool identifiers. Wildcards and implicit role inheritance are not supported.
 
+## Runtime and cancellation
+Python `execute_async` uses task cancellation when its timeout expires. TypeScript `execute` rejects on timeout and aborts the supplied `AbortSignal`. Integrations must propagate and honor cancellation. JavaScript promises and Python coroutines cannot forcibly terminate arbitrary native code or reverse side effects already committed by an external system. Timeouts are not process isolation.
+
 ## Trust boundaries
 Model output is untrusted. A model proposing a tool call does not authorize it. The host application maps tool names to concrete operations and routes each operation through the policy-enforcing executor.
 
@@ -35,7 +38,6 @@ The default recorder stores tool name, run ID, event type, timestamp, duration, 
 - shared cross-language conformance fixtures;
 - persistent registry and scoped identities;
 - policy composition and human approval workflows;
-- async and streaming runtime;
 - OpenTelemetry-compatible exporters;
 - evaluation datasets and deterministic replay;
 - isolated worker adapters and resource budgets.
