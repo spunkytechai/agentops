@@ -182,7 +182,7 @@ export class SqliteApprovalStore implements ApprovalStore {
       toolName: String(row.tool_name),
       summary: String(row.summary),
       status: String(row.status) as ApprovalStatus,
-      expiresAt: Number(row.expires_at),
+      expiresAt: Number(row.expires_at_ms),
       ...(row.approver_id === null ? {} : { approverId: String(row.approver_id) }),
       ...(row.reason === null ? {} : { reason: String(row.reason) }),
       ...(row.action_fingerprint === null ? {} : { actionFingerprint: String(row.action_fingerprint) }),
