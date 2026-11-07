@@ -85,3 +85,23 @@ test("policy deny wins and leaves the approval unconsumed", async () => {
   );
   assert.equal(manager.get(request.requestId).status, "approved");
 });
+
+test("invalid timeout does not consume an approved action", async () => {
+  const manager = new ApprovalManager();
+  const request = manager.request({
+    principalId: "finance-user", toolName: "payments.refund",
+    summary: "Refund order 1042", action,
+  });
+  manager.approve(request.requestId, "finance-admin");
+  const executor = new ToolExecutor(new ToolPolicy({
+    rules: [new PolicyRule({ principalId: "finance-user", toolName: "payments.refund", effect: "allow" })],
+  }));
+  await assert.rejects(
+    executor.executeApproved("payments.refund", async () => "no", "bad-timeout", {
+      principalId: "finance-user", approvalManager: manager,
+      approvalRequestId: request.requestId, action, timeoutMs: 0,
+    }),
+    /timeoutMs must be a positive finite number/,
+  );
+  assert.equal(manager.get(request.requestId).status, "approved");
+});
