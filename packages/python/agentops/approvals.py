@@ -114,14 +114,17 @@ class SqliteApprovalStore:
     """
 
     def __init__(self, database: str | Path, *, timeout_seconds: float = 30.0) -> None:
+        if (
+            isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(timeout_seconds) or timeout_seconds <= 0
+        ):
+            raise ValueError("timeout_seconds must be a positive finite number")
         self._connection = sqlite3.connect(
             str(database), timeout=timeout_seconds, isolation_level=None,
             check_same_thread=False,
         )
         self._connection.row_factory = sqlite3.Row
         self._lock = RLock()
-        if timeout_seconds <= 0 or not math.isfinite(timeout_seconds):
-            raise ValueError("timeout_seconds must be a positive finite number")
         self._connection.execute(f"PRAGMA busy_timeout = {int(timeout_seconds * 1000)}")
         self._connection.execute("""
             CREATE TABLE IF NOT EXISTS agentops_approvals (
