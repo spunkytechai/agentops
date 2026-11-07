@@ -42,7 +42,7 @@ test("approval is bound to exact principal and tool", () => {
 });
 
 test("expired approval cannot be consumed", () => {
-  let now = 100;
+  let now = 100_000;
   const manager = new ApprovalManager({ clock: () => now });
   const request = manager.request({
     principalId: "user-17",
@@ -51,7 +51,7 @@ test("expired approval cannot be consumed", () => {
     ttlSeconds: 10,
   });
   manager.approve(request.requestId, "admin-1");
-  now = 111;
+  now = 111_000;
   assert.throws(() => manager.consume(request.requestId, "user-17", "payments.refund"), ApprovalRequiredError);
 });
 
