@@ -17,6 +17,9 @@ from .registry import (
     AgentDefinition,
     AgentNotFoundError,
     AgentRegistry,
+    AgentRegistryStore,
+    InMemoryAgentRegistryStore,
+    SqliteAgentRegistryStore,
 )
 from .runtime import ToolExecutionTimeoutError, ToolExecutor
 
@@ -25,6 +28,9 @@ __all__ = [
     "AgentDefinition",
     "AgentNotFoundError",
     "AgentRegistry",
+    "AgentRegistryStore",
+    "InMemoryAgentRegistryStore",
+    "SqliteAgentRegistryStore",
     "ApprovalDeniedError",
     "ApprovalGrant",
     "ApprovalManager",
