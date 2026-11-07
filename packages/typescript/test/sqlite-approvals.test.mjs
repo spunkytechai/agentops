@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   ApprovalManager,
   ApprovalRequiredError,
@@ -64,4 +67,28 @@ test("expiry is applied after constructing a new manager over the same database"
   });
   assert.equal(restarted.get(request.requestId).status, "expired");
   db.close();
+});
+
+test("separate SQLite connections cannot consume the same approval twice", () => {
+  const directory = mkdtempSync(join(tmpdir(), "agentops-approval-"));
+  const path = join(directory, "approvals.sqlite3");
+  const db1 = new Database(path);
+  const db2 = new Database(path);
+  try {
+    const first = new ApprovalManager({ store: new SqliteApprovalStore(db1) });
+    const request = first.request({
+      principalId: "user-17", toolName: "files.delete", summary: "Delete archive",
+    });
+    first.approve(request.requestId, "admin-1");
+    const second = new ApprovalManager({ store: new SqliteApprovalStore(db2) });
+    first.consume(request.requestId, "user-17", "files.delete");
+    assert.throws(
+      () => second.consume(request.requestId, "user-17", "files.delete"),
+      ApprovalRequiredError,
+    );
+  } finally {
+    db1.close();
+    db2.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
