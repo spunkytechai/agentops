@@ -7,13 +7,14 @@ The Python and TypeScript SDKs share these conceptual primitives:
 2. **Agent registry:** process-local lookup keyed by exact agent ID and version; duplicate versions are rejected.
 3. **Policy:** exact tool identifiers, global allow/deny sets, and principal-scoped allow/deny rules.
 4. **Approval manager:** expiring, one-time decisions bound to a principal, tool, and optional canonical action fingerprint.
+5. **Approval store:** pluggable state persistence with in-memory and SQLite implementations; consumption is atomic.
 5. **Execution boundary:** policy authorization before approval consumption and tool invocation; asynchronous calls can be bounded by a timeout.
 6. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink.
 
 Core packages are dependency-light and provider-neutral.
 
 ## Registry semantics
-The initial registry is in-memory and local to one process. It supports exact version retrieval and deterministic listing. It does not resolve semantic-version ranges, persist data, coordinate replicas, or imply that an agent definition is executable. A future persistence layer must preserve immutable version identity and explicit conflict handling.
+The registry is currently in-memory and local to one process. It supports exact version retrieval and deterministic listing. It does not resolve semantic-version ranges, persist data, coordinate replicas, or imply that an agent definition is executable. A future persistence layer must preserve immutable version identity and explicit conflict handling.
 
 ## Policy evaluation order
 1. Validate the requested tool identifier and optional principal identifier.
@@ -35,6 +36,9 @@ For a consequential action, the host application creates an approval request wit
 6. Records execution lifecycle metadata.
 
 The tool adapter must use the callback's supplied action object as the actual invocation input. The SDK cannot introspect arbitrary closures or verify that an adapter does not ignore the approved object.
+
+## Approval storage contract
+`ApprovalStore` exposes `create`, `get`, `transition`, and atomic `consume` operations. The SQLite adapters use a conditional SQL update requiring the exact request ID, principal, tool, action fingerprint, approved state, approver, and unexpired deadline. SQLite serializes competing writers so only one consumer can succeed. Python uses `sqlite3`; TypeScript accepts a synchronous SQLite database handle supplied by the host. Use a transactional server database rather than a shared SQLite file for multi-host deployments.
 
 ## Runtime and cancellation
 Python `execute_async` uses task cancellation when its timeout expires. TypeScript `execute` rejects on timeout and aborts the supplied `AbortSignal`. Integrations must propagate and honor cancellation. JavaScript promises and Python coroutines cannot forcibly terminate arbitrary native code or reverse side effects already committed by an external system. Timeouts are not process isolation.
