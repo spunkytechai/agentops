@@ -177,7 +177,7 @@ Both SDKs share the `agentops_agents` SQLite schema. The composite primary key (
 
 ## Security boundary
 
-Policy and approval are application-level controls, **not a sandbox**. The agent registry remains process-local. SQLite approval storage provides durable state and atomic single-use transitions, but does not authenticate approvers or protect the database file. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
+Policy and approval are application-level controls, **not a sandbox**. The default agent registry is process-local; its optional SQLite store persists immutable definitions across restarts but does not verify agent artifacts or publisher identity. SQLite approval storage provides durable state and atomic single-use transitions, but does not authenticate approvers or protect the database file. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
 
 ## Roadmap
 
@@ -193,7 +193,8 @@ Policy and approval are application-level controls, **not a sandbox**. The agent
 - [x] Shared cross-language policy conformance fixture and immutable policy snapshots
 - [x] Canonical action fingerprints and execution-integrated approval gates
 - [x] Pluggable approval storage and durable SQLite adapters
-- [ ] Persistent agent registry and server-database adapters
+- [x] Persistent agent registry with shared Python/TypeScript SQLite schema
+- [ ] Transactional server-database adapters for multi-host deployments
 - [ ] Distributed identity and approval scopes
 - [ ] OpenTelemetry exporters and evaluation engine
 - [ ] Isolated worker adapters and deployment guides
