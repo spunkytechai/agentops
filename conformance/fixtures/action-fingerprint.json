@@ -1,0 +1,5 @@
+{
+  "action": {"amount": 2500, "currency": "INR", "order_id": "1042"},
+  "canonical": "{\"amount\":2500,\"currency\":\"INR\",\"order_id\":\"1042\"}",
+  "sha256": "4b3cea3187ee5de304966068fca2aa581a2915561e175a228d04cd2a1d51ea93"
+}
