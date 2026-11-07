@@ -25,4 +25,4 @@ class ActionFingerprintTests(unittest.TestCase):
 
     def test_unpaired_surrogate_is_rejected(self):
         with self.assertRaises(UnicodeEncodeError):
-            action_fingerprint({"invalid": "\\ud800"})
+            action_fingerprint({"invalid": "\ud800"})
