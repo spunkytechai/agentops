@@ -75,3 +75,54 @@ class ExecutionApprovalTests(unittest.TestCase):
                 approval_request_id=request.request_id, action=self.action,
             )
         self.assertEqual(manager.get(request.request_id).status, "approved")
+
+    def test_async_approved_execution_uses_the_bound_action(self):
+        import asyncio
+
+        async def scenario():
+            manager = ApprovalManager()
+            request = manager.request(
+                "finance-user", "payments.refund", "Refund order 1042",
+                action=self.action,
+            )
+            manager.approve(request.request_id, approver_id="finance-admin")
+            executor = ToolExecutor(ToolPolicy(rules=(
+                PolicyRule("finance-user", "payments.refund", "allow"),
+            )))
+            result = await executor.execute_async_approved(
+                "payments.refund",
+                lambda approved_action: asyncio.sleep(0, result=approved_action["amount"]),
+                principal_id="finance-user",
+                approval_manager=manager,
+                approval_request_id=request.request_id,
+                action=self.action,
+                timeout_seconds=2,
+            )
+            self.assertEqual(result, 2500)
+            self.assertEqual(manager.get(request.request_id).status, "consumed")
+
+        asyncio.run(scenario())
+
+    def test_invalid_async_timeout_does_not_consume_approval(self):
+        import asyncio
+
+        async def scenario():
+            manager = ApprovalManager()
+            request = manager.request(
+                "finance-user", "payments.refund", "Refund order 1042",
+                action=self.action,
+            )
+            manager.approve(request.request_id, approver_id="finance-admin")
+            executor = ToolExecutor(ToolPolicy(rules=(
+                PolicyRule("finance-user", "payments.refund", "allow"),
+            )))
+            with self.assertRaises(ValueError):
+                await executor.execute_async_approved(
+                    "payments.refund", lambda action: asyncio.sleep(0),
+                    principal_id="finance-user", approval_manager=manager,
+                    approval_request_id=request.request_id, action=self.action,
+                    timeout_seconds=0,
+                )
+            self.assertEqual(manager.get(request.request_id).status, "approved")
+
+        asyncio.run(scenario())
