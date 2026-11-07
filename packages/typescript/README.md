@@ -1,6 +1,6 @@
 # AgentOps TypeScript SDK
 
-The TypeScript SDK provides deny-by-default tool authorization, versioned agent registration, metadata-only execution recording, and durable approval storage.
+The TypeScript SDK provides deny-by-default tool authorization, versioned agent registration, metadata-only execution recording, and durable approval and registry storage.
 
 ## Development
 ```bash
@@ -20,6 +20,24 @@ const approvals = new ApprovalManager({ store: new SqliteApprovalStore(database)
 ```
 
 The application owns the connection lifecycle. For multi-host deployments, implement `ApprovalStore` using a transactional database with atomic compare-and-consume semantics.
+
+## Durable agent registry
+
+```ts
+import Database from "better-sqlite3";
+import { AgentDefinition, AgentRegistry, SqliteAgentRegistryStore } from "@spunkytech/agentops";
+
+const database = new Database("agentops.sqlite3");
+const registry = new AgentRegistry({ store: new SqliteAgentRegistryStore(database) });
+registry.register(new AgentDefinition({
+  agentId: "support.assistant",
+  version: "1.0.0",
+  description: "Customer support agent",
+  tools: ["knowledge.search", "ticket.create"],
+}));
+```
+
+Both SDKs use the same `agentops_agents` SQLite schema. A composite primary key prevents duplicate versions across connections. The application owns the database connection lifecycle. For multi-host deployments, implement `AgentRegistryStore` using a transactional database.
 
 ## Example
 ```ts
