@@ -12,6 +12,8 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 - Deny-by-default tool authorization with global and principal-scoped rules.
 - Explicit deny precedence across global and scoped permissions.
 - Human approval state machine with pending, approved, denied, expired, and consumed states.
+- Pluggable approval-store contract with in-memory and SQLite implementations in both SDKs.
+- Atomic SQLite compare-and-consume; a grant cannot be consumed twice by competing workers.
 - Principal-, tool-, and canonical-action-bound, expiring, one-time approval grants.
 - Execution-integrated approval gates in both SDKs.
 - Synchronous and asynchronous tool execution in Python.
@@ -115,7 +117,7 @@ The executor passes a canonical snapshot of the payload whose fingerprint was ap
 
 ## Security boundary
 
-Policy and approval are application-level controls, **not a sandbox**. The approval manager and registry are process-local and non-persistent. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
+Policy and approval are application-level controls, **not a sandbox**. The agent registry remains process-local. SQLite approval storage provides durable state and atomic single-use transitions, but does not authenticate approvers or protect the database file. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
 
 ## Roadmap
 
@@ -130,7 +132,9 @@ Policy and approval are application-level controls, **not a sandbox**. The appro
 - [x] In-memory human approval state machine
 - [x] Shared cross-language policy conformance fixture and immutable policy snapshots
 - [x] Canonical action fingerprints and execution-integrated approval gates
-- [ ] Persistent approval/registry storage and distributed identity management
+- [x] Pluggable approval storage and durable SQLite adapters
+- [ ] Persistent agent registry and server-database adapters
+- [ ] Distributed identity and approval scopes
 - [ ] OpenTelemetry exporters and evaluation engine
 - [ ] Isolated worker adapters and deployment guides
 - [ ] Independent security review before stable release
