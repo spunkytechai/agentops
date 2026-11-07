@@ -67,6 +67,11 @@ class SqliteApprovalStoreTests(unittest.TestCase):
         store = SqliteApprovalStore(self.path)
         manager = ApprovalManager(clock=lambda: now[0], store=store)
         request = manager.request("user-17", "files.delete", "Delete archive", ttl_seconds=5)
+        raw = store._connection.execute(
+            "SELECT expires_at_ms FROM agentops_approvals WHERE request_id = ?",
+            (request.request_id,),
+        ).fetchone()
+        self.assertEqual(raw["expires_at_ms"], 105_000)
         store.close()
         now[0] = 106.0
 
