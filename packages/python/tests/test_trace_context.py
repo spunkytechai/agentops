@@ -34,3 +34,10 @@ class TraceContextTests(unittest.TestCase):
         self.assertRegex(event.trace_id, r"^[0-9a-f]{32}$")
         self.assertRegex(event.span_id, r"^[0-9a-f]{16}$")
         self.assertIsNone(event.parent_span_id)
+
+    def test_child_context_keeps_trace_id_and_links_parent_span(self):
+        parent = TraceContext.create()
+        child = TraceContext.create(parent)
+        self.assertEqual(child.trace_id, parent.trace_id)
+        self.assertEqual(child.parent_span_id, parent.span_id)
+        self.assertNotEqual(child.span_id, parent.span_id)
