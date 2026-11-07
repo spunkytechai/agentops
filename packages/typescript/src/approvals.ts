@@ -116,21 +116,21 @@ export class SqliteApprovalStore implements ApprovalStore {
         tool_name TEXT NOT NULL,
         summary TEXT NOT NULL,
         status TEXT NOT NULL,
-        expires_at REAL NOT NULL,
+        expires_at_ms REAL NOT NULL,
         approver_id TEXT,
         reason TEXT,
         action_fingerprint TEXT
       )
     `);
     database.exec(
-      "CREATE INDEX IF NOT EXISTS idx_agentops_approvals_status ON agentops_approvals(status, expires_at)",
+      "CREATE INDEX IF NOT EXISTS idx_agentops_approvals_status ON agentops_approvals(status, expires_at_ms)",
     );
   }
 
   create(request: ApprovalRequest): void {
     this.database.prepare(`
       INSERT INTO agentops_approvals
-      (request_id, principal_id, tool_name, summary, status, expires_at,
+      (request_id, principal_id, tool_name, summary, status, expires_at_ms,
        approver_id, reason, action_fingerprint)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -166,7 +166,7 @@ export class SqliteApprovalStore implements ApprovalStore {
       UPDATE agentops_approvals SET status = 'consumed'
       WHERE request_id = ? AND principal_id = ? AND tool_name = ?
         AND status = 'approved' AND approver_id IS NOT NULL
-        AND expires_at > ? AND action_fingerprint IS ?
+        AND expires_at_ms > ? AND action_fingerprint IS ?
     `).run(requestId, principalId, toolName, now, fingerprint ?? null);
     return result.changes === 1 ? this.get(requestId) : undefined;
   }
