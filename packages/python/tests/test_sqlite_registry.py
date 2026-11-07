@@ -1,5 +1,8 @@
+import json
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from pathlib import Path
 
 from agentops import (
@@ -57,6 +60,45 @@ class SqliteAgentRegistryTests(unittest.TestCase):
         self.assertEqual(
             [item.version for item in registry.list("alpha.agent")],
             ["1.0.0", "2.0.0"],
+        )
+        registry.store.close()
+
+
+    def test_concurrent_duplicate_registration_has_exactly_one_winner(self):
+        first_store = SqliteAgentRegistryStore(self.path)
+        second_store = SqliteAgentRegistryStore(self.path)
+        first = AgentRegistry(store=first_store)
+        second = AgentRegistry(store=second_store)
+        agent = AgentDefinition("concurrent.agent", "1.0.0")
+        barrier = Barrier(2)
+
+        def register(registry):
+            barrier.wait()
+            try:
+                registry.register(agent)
+                return "registered"
+            except AgentAlreadyRegisteredError:
+                return "duplicate"
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(register, (first, second)))
+        self.assertCountEqual(results, ["registered", "duplicate"])
+        first_store.close()
+        second_store.close()
+
+    def test_shared_conformance_fixture_round_trips(self):
+        fixture_path = Path(__file__).resolve().parents[3] / "conformance" / "fixtures" / "agents.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        registry = AgentRegistry(store=SqliteAgentRegistryStore(self.path))
+        for item in fixture["agents"]:
+            registry.register(AgentDefinition(
+                item["agent_id"], item["version"], item["description"], tuple(item["tools"])
+            ))
+        self.assertEqual(
+            [(agent.agent_id, agent.version, agent.description, list(agent.tools))
+             for agent in registry.list()],
+            [(item["agent_id"], item["version"], item["description"], item["tools"])
+             for item in fixture["agents"]],
         )
         registry.store.close()
 
