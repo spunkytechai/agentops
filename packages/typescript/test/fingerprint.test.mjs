@@ -12,11 +12,7 @@ test("action fingerprint matches the shared Python/TypeScript fixture", () => {
 });
 
 test("object key order does not change the action fingerprint", () => {
-  const reordered = {
-    currency: fixture.action.currency,
-    order_id: fixture.action.order_id,
-    amount: fixture.action.amount,
-  };
+  const reordered = Object.fromEntries(Object.entries(fixture.action).reverse());
   assert.equal(actionFingerprint(reordered), fixture.sha256);
 });
 
