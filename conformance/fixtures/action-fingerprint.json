@@ -1,5 +1,5 @@
 {
-  "action": {"amount": 2500, "currency": "INR", "order_id": "1042"},
-  "canonical": "{\"amount\":2500,\"currency\":\"INR\",\"order_id\":\"1042\"}",
-  "sha256": "4b3cea3187ee5de304966068fca2aa581a2915561e175a228d04cd2a1d51ea93"
+  "action": {"amount": 2500, "currency": "INR", "order_id": "1042", "𐀀": "supplementary", "": "bmp"},
+  "canonical": "{\"amount\":2500,\"currency\":\"INR\",\"order_id\":\"1042\",\"𐀀\":\"supplementary\",\"\":\"bmp\"}",
+  "sha256": "e9f754b6593db6254acd5de8f916523585a29d1896a9f95ae248e769bc1d7ad2"
 }
