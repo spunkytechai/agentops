@@ -24,7 +24,7 @@
 - Both SDKs expose an `ApprovalStore` contract, an `InMemoryApprovalStore` default, and a `SqliteApprovalStore` adapter.
 - Python uses the standard-library `sqlite3` module. TypeScript accepts a synchronous SQLite database handle; the integration tests use `better-sqlite3`.
 - Consumption is a single conditional SQL `UPDATE` matching request ID, principal, tool, action fingerprint, approved status, non-null approver, and expiry. Only one competing update can change approved to consumed.
-- SQLite persistence survives manager/process restarts when the same database file is reopened.
+- SQLite persistence survives manager/process restarts when the same database file is reopened. Both SDKs use the shared `expires_at_ms` column in Unix epoch milliseconds; Python converts its seconds-based public clock at the storage boundary.
 - Workers must share the same database file on storage with reliable SQLite locking. For multi-host deployments, use a transactional server database.
 - Keep the database private, access-controlled, and backed up. The SDK does not encrypt summaries or fingerprints.
 - Custom `ApprovalStore` implementations must enforce atomic compare-and-consume semantics across workers; read-then-write is unsafe.
