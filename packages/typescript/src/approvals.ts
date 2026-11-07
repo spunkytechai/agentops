@@ -30,8 +30,30 @@ export interface ApprovalGrant {
   readonly actionFingerprint?: string;
 }
 
+export interface SqliteRunResult { readonly changes: number }
+export interface SqliteStatement {
+  run(...parameters: unknown[]): SqliteRunResult;
+  get(...parameters: unknown[]): unknown;
+}
+export interface SqliteDatabase {
+  exec(sql: string): void;
+  prepare(sql: string): SqliteStatement;
+}
+
+/** Store implementations must make consume a single atomic compare-and-consume operation. */
+export interface ApprovalStore {
+  create(request: ApprovalRequest): void;
+  get(requestId: string): ApprovalRequest | undefined;
+  transition(requestId: string, expectedStatus: ApprovalStatus, updated: ApprovalRequest): boolean;
+  consume(
+    requestId: string, principalId: string, toolName: string,
+    actionFingerprint: string | undefined, now: number,
+  ): ApprovalRequest | undefined;
+}
+
 export interface ApprovalManagerOptions {
   readonly clock?: () => number;
+  readonly store?: ApprovalStore;
 }
 
 export class ApprovalRequiredError extends Error {
@@ -48,13 +70,134 @@ export class ApprovalDeniedError extends ApprovalRequiredError {
   }
 }
 
-/** Process-local approval state machine. Host applications authenticate approvers. */
-export class ApprovalManager {
+export class InMemoryApprovalStore implements ApprovalStore {
   private readonly records = new Map<string, ApprovalRequest>();
+
+  create(request: ApprovalRequest): void {
+    if (this.records.has(request.requestId)) throw new TypeError("approval request already exists");
+    this.records.set(request.requestId, request);
+  }
+
+  get(requestId: string): ApprovalRequest | undefined {
+    return this.records.get(requestId);
+  }
+
+  transition(requestId: string, expectedStatus: ApprovalStatus, updated: ApprovalRequest): boolean {
+    const current = this.records.get(requestId);
+    if (current === undefined || current.status !== expectedStatus) return false;
+    this.records.set(requestId, updated);
+    return true;
+  }
+
+  consume(
+    requestId: string, principalId: string, toolName: string,
+    fingerprint: string | undefined, now: number,
+  ): ApprovalRequest | undefined {
+    const current = this.records.get(requestId);
+    if (
+      current === undefined || current.status !== "approved" ||
+      current.principalId !== principalId || current.toolName !== toolName ||
+      current.actionFingerprint !== fingerprint || current.approverId === undefined ||
+      current.expiresAt <= now
+    ) return undefined;
+    const consumed = Object.freeze({ ...current, status: "consumed" as const });
+    this.records.set(requestId, consumed);
+    return consumed;
+  }
+}
+
+/** SQLite adapter compatible with better-sqlite3 and Node's synchronous SQLite API. */
+export class SqliteApprovalStore implements ApprovalStore {
+  constructor(private readonly database: SqliteDatabase) {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS agentops_approvals (
+        request_id TEXT PRIMARY KEY,
+        principal_id TEXT NOT NULL,
+        tool_name TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        status TEXT NOT NULL,
+        expires_at REAL NOT NULL,
+        approver_id TEXT,
+        reason TEXT,
+        action_fingerprint TEXT
+      )
+    `);
+    database.exec(
+      "CREATE INDEX IF NOT EXISTS idx_agentops_approvals_status ON agentops_approvals(status, expires_at)",
+    );
+  }
+
+  create(request: ApprovalRequest): void {
+    this.database.prepare(`
+      INSERT INTO agentops_approvals
+      (request_id, principal_id, tool_name, summary, status, expires_at,
+       approver_id, reason, action_fingerprint)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      request.requestId, request.principalId, request.toolName, request.summary,
+      request.status, request.expiresAt, request.approverId ?? null,
+      request.reason ?? null, request.actionFingerprint ?? null,
+    );
+  }
+
+  get(requestId: string): ApprovalRequest | undefined {
+    const row = this.database.prepare(
+      "SELECT * FROM agentops_approvals WHERE request_id = ?",
+    ).get(requestId);
+    return row === undefined ? undefined : this.fromRow(row);
+  }
+
+  transition(requestId: string, expectedStatus: ApprovalStatus, updated: ApprovalRequest): boolean {
+    const result = this.database.prepare(`
+      UPDATE agentops_approvals SET status = ?, approver_id = ?, reason = ?
+      WHERE request_id = ? AND status = ?
+    `).run(
+      updated.status, updated.approverId ?? null, updated.reason ?? null,
+      requestId, expectedStatus,
+    );
+    return result.changes === 1;
+  }
+
+  consume(
+    requestId: string, principalId: string, toolName: string,
+    fingerprint: string | undefined, now: number,
+  ): ApprovalRequest | undefined {
+    const result = this.database.prepare(`
+      UPDATE agentops_approvals SET status = 'consumed'
+      WHERE request_id = ? AND principal_id = ? AND tool_name = ?
+        AND status = 'approved' AND approver_id IS NOT NULL
+        AND expires_at > ? AND action_fingerprint IS ?
+    `).run(requestId, principalId, toolName, now, fingerprint ?? null);
+    return result.changes === 1 ? this.get(requestId) : undefined;
+  }
+
+  private fromRow(value: unknown): ApprovalRequest {
+    if (typeof value !== "object" || value === null) {
+      throw new TypeError("SQLite returned an invalid approval row");
+    }
+    const row = value as Record<string, unknown>;
+    return Object.freeze({
+      requestId: String(row.request_id),
+      principalId: String(row.principal_id),
+      toolName: String(row.tool_name),
+      summary: String(row.summary),
+      status: String(row.status) as ApprovalStatus,
+      expiresAt: Number(row.expires_at),
+      ...(row.approver_id === null ? {} : { approverId: String(row.approver_id) }),
+      ...(row.reason === null ? {} : { reason: String(row.reason) }),
+      ...(row.action_fingerprint === null ? {} : { actionFingerprint: String(row.action_fingerprint) }),
+    });
+  }
+}
+
+/** Approval state machine. Host applications authenticate and authorize approvers. */
+export class ApprovalManager {
   private readonly clock: () => number;
+  readonly store: ApprovalStore;
 
   constructor(options: ApprovalManagerOptions = {}) {
     this.clock = options.clock ?? Date.now;
+    this.store = options.store ?? new InMemoryApprovalStore();
   }
 
   request(options: ApprovalRequestOptions): ApprovalRequest {
@@ -74,7 +217,7 @@ export class ApprovalManager {
       expiresAt: this.clock() + ttlSeconds * 1000,
       ...(options.action === undefined ? {} : { actionFingerprint: actionFingerprint(options.action) }),
     });
-    this.records.set(request.requestId, request);
+    this.store.create(request);
     return request;
   }
 
@@ -84,21 +227,29 @@ export class ApprovalManager {
 
   approve(requestId: string, approverId: string): ApprovalRequest {
     this.validateIdentity(approverId, "approverId");
-    const request = this.expireIfNeeded(this.getRecord(requestId));
+    const request = this.get(requestId);
     if (request.status !== "pending") {
       throw new ApprovalDeniedError(`Approval request "${requestId}" is ${request.status}`);
     }
-    return this.replace(requestId, { status: "approved", approverId });
+    const updated = this.replace(request, { status: "approved", approverId });
+    if (!this.store.transition(requestId, "pending", updated)) {
+      throw new ApprovalDeniedError(`Approval request "${requestId}" is ${this.get(requestId).status}`);
+    }
+    return updated;
   }
 
   deny(requestId: string, approverId: string, reason: string): ApprovalRequest {
     this.validateIdentity(approverId, "approverId");
     this.validateIdentity(reason, "reason");
-    const request = this.expireIfNeeded(this.getRecord(requestId));
+    const request = this.get(requestId);
     if (request.status !== "pending") {
       throw new ApprovalDeniedError(`Approval request "${requestId}" is ${request.status}`);
     }
-    return this.replace(requestId, { status: "denied", approverId, reason });
+    const updated = this.replace(request, { status: "denied", approverId, reason });
+    if (!this.store.transition(requestId, "pending", updated)) {
+      throw new ApprovalDeniedError(`Approval request "${requestId}" is ${this.get(requestId).status}`);
+    }
+    return updated;
   }
 
   consume(
@@ -107,7 +258,7 @@ export class ApprovalManager {
     toolName: string,
     action?: ActionObject,
   ): ApprovalGrant {
-    const request = this.expireIfNeeded(this.getRecord(requestId));
+    const request = this.get(requestId);
     if (request.principalId !== principalId || request.toolName !== toolName) {
       throw new ApprovalRequiredError("Approval does not match this principal and tool");
     }
@@ -117,22 +268,31 @@ export class ApprovalManager {
     if (request.status !== "approved" || request.approverId === undefined) {
       throw new ApprovalRequiredError(`Approval request "${requestId}" is ${request.status}`);
     }
-    const suppliedFingerprint = action === undefined ? undefined : actionFingerprint(action);
-    if (suppliedFingerprint !== request.actionFingerprint) {
+    const fingerprint = action === undefined ? undefined : actionFingerprint(action);
+    if (fingerprint !== request.actionFingerprint) {
       throw new ApprovalRequiredError("Approval does not match the canonical action");
     }
-    this.replace(requestId, { status: "consumed" });
+    const consumed = this.store.consume(
+      requestId, principalId, toolName, fingerprint, this.clock(),
+    );
+    if (consumed === undefined) {
+      const latest = this.get(requestId);
+      if (latest.status === "denied") {
+        throw new ApprovalDeniedError(`Approval request "${requestId}" was denied`);
+      }
+      throw new ApprovalRequiredError(`Approval request "${requestId}" is ${latest.status}`);
+    }
     return Object.freeze({
-      requestId: request.requestId,
-      principalId: request.principalId,
-      toolName: request.toolName,
-      approverId: request.approverId,
-      ...(request.actionFingerprint === undefined ? {} : { actionFingerprint: request.actionFingerprint }),
+      requestId: consumed.requestId,
+      principalId: consumed.principalId,
+      toolName: consumed.toolName,
+      approverId: consumed.approverId ?? "",
+      ...(consumed.actionFingerprint === undefined ? {} : { actionFingerprint: consumed.actionFingerprint }),
     });
   }
 
   private getRecord(requestId: string): ApprovalRequest {
-    const request = this.records.get(requestId);
+    const request = this.store.get(requestId);
     if (request === undefined) {
       throw new ApprovalRequiredError(`Unknown approval request "${requestId}"`);
     }
@@ -142,18 +302,18 @@ export class ApprovalManager {
   private expireIfNeeded(request: ApprovalRequest): ApprovalRequest {
     if ((request.status === "pending" || request.status === "approved") &&
         this.clock() >= request.expiresAt) {
-      return this.replace(request.requestId, { status: "expired" });
+      const expired = this.replace(request, { status: "expired" });
+      if (this.store.transition(request.requestId, request.status, expired)) return expired;
+      return this.getRecord(request.requestId);
     }
     return request;
   }
 
   private replace(
-    requestId: string,
+    request: ApprovalRequest,
     changes: Partial<Pick<ApprovalRequest, "status" | "approverId" | "reason">>,
   ): ApprovalRequest {
-    const updated = Object.freeze({ ...this.getRecord(requestId), ...changes });
-    this.records.set(requestId, updated);
-    return updated;
+    return Object.freeze({ ...request, ...changes });
   }
 
   private validateIdentity(value: string, name: string): void {
