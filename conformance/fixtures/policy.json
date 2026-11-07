@@ -1,0 +1,22 @@
+{
+  "initial": {
+    "allowedTools": ["reports.read"],
+    "deniedTools": ["payments.refund"],
+    "rules": [
+      {"principalId": "intern", "toolName": "reports.read", "effect": "deny"},
+      {"principalId": "analyst", "toolName": "reports.export", "effect": "allow"}
+    ]
+  },
+  "mutations": {
+    "addAllowedTool": "secrets.dump",
+    "removeDeniedTool": "payments.refund",
+    "addRule": {"principalId": "intern", "toolName": "secrets.dump", "effect": "allow"}
+  },
+  "expected": [
+    {"toolName": "reports.read", "principalId": "analyst", "allowed": true, "reason": "explicitly allowed"},
+    {"toolName": "reports.read", "principalId": "intern", "allowed": false, "reason": "principal-scoped deny rule"},
+    {"toolName": "payments.refund", "principalId": "finance", "allowed": false, "reason": "explicitly denied"},
+    {"toolName": "reports.export", "principalId": "analyst", "allowed": true, "reason": "principal-scoped allow rule"},
+    {"toolName": "secrets.dump", "principalId": "intern", "allowed": false, "reason": "not present in allow-list"}
+  ]
+}

@@ -6,6 +6,7 @@
 - Global and principal-scoped explicit deny rules take precedence over every allow rule.
 - Principal-scoped rules match only the exact principal ID and tool name.
 - A denied operation is not invoked and emits no execution event.
+- Policy construction snapshots caller-owned collections; mutating the input sets, arrays, or rule lists after construction cannot silently change authorization decisions.
 - Policy evaluation is an application-level control, not a substitute for infrastructure isolation.
 
 ## Human approval workflow

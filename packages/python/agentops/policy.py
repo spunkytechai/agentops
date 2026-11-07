@@ -46,11 +46,21 @@ class ToolPolicy:
     rules: tuple[PolicyRule, ...] = ()
 
     def __post_init__(self) -> None:
-        for name in self.allowed_tools | self.denied_tools:
+        # Snapshot caller-owned collections so a frozen policy cannot be
+        # changed indirectly after construction.
+        allowed_tools = frozenset(self.allowed_tools)
+        denied_tools = frozenset(self.denied_tools)
+        rules = tuple(self.rules)
+
+        for name in allowed_tools | denied_tools:
             if not isinstance(name, str) or not name.strip():
                 raise ValueError("Tool names must be non-empty strings")
-        if any(not isinstance(rule, PolicyRule) for rule in self.rules):
+        if any(not isinstance(rule, PolicyRule) for rule in rules):
             raise TypeError("rules must contain PolicyRule instances")
+
+        object.__setattr__(self, "allowed_tools", allowed_tools)
+        object.__setattr__(self, "denied_tools", denied_tools)
+        object.__setattr__(self, "rules", rules)
 
     def evaluate(self, tool_name: str, principal_id: str | None = None) -> PolicyDecision:
         if not isinstance(tool_name, str) or not tool_name.strip():

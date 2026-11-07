@@ -112,7 +112,7 @@ Policy and approval are application-level controls, **not a sandbox**. The appro
 - [x] Timeout error recording and cancellation signaling
 - [x] Initial unit tests and CI workflow
 - [x] In-memory human approval state machine
-- [ ] Shared cross-language conformance fixtures
+- [x] Shared cross-language policy conformance fixture and immutable policy snapshots
 - [ ] Policy composition and execution-integrated approval gates
 - [ ] Persistent registry and distributed identity management
 - [ ] OpenTelemetry exporters and evaluation engine
