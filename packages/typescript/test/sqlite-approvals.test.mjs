@@ -61,6 +61,11 @@ test("expiry is applied after constructing a new manager over the same database"
     principalId: "user-17", toolName: "files.delete",
     summary: "Delete archive", ttlSeconds: 5,
   });
+  assert.equal(
+    db.prepare("SELECT expires_at_ms FROM agentops_approvals WHERE request_id = ?")
+      .get(request.requestId).expires_at_ms,
+    105_000,
+  );
   now = 106_000;
   const restarted = new ApprovalManager({
     clock: () => now, store: new SqliteApprovalStore(db),
