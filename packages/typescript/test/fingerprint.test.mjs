@@ -25,5 +25,5 @@ test("unsupported floating point values are rejected", () => {
 });
 
 test("unpaired Unicode surrogates are rejected", () => {
-  assert.throws(() => actionFingerprint({ invalid: "\\ud800" }), TypeError);
+  assert.throws(() => actionFingerprint({ invalid: "\ud800" }), TypeError);
 });
