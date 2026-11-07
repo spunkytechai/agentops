@@ -2,6 +2,15 @@
   "schema": "agentops_agents.v1",
   "agents": [
     {
+      "agent_id": "research.agent",
+      "version": "1.0.0",
+      "description": "Research agent",
+      "tools": [
+        "web.search",
+        "document.read"
+      ]
+    },
+    {
       "agent_id": "support.assistant",
       "version": "1.0.0",
       "description": "Support agent",
@@ -18,15 +27,6 @@
         "knowledge.search",
         "ticket.create",
         "ticket.escalate"
-      ]
-    },
-    {
-      "agent_id": "research.agent",
-      "version": "1.0.0",
-      "description": "Research agent",
-      "tools": [
-        "web.search",
-        "document.read"
       ]
     }
   ]
