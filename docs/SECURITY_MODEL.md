@@ -1,4 +1,4 @@
-# Security Model (0.5)
+# Security Model (0.6)
 
 ## Authorization
 - Default decision is deny.
@@ -18,8 +18,18 @@
 - A changed amount, target, resource ID, or other action field produces a different fingerprint and is rejected before invocation.
 - Principal IDs must be derived from trusted host authentication, not model-generated content.
 - The executor does not authenticate approvers. The host application must authenticate the approver, authorize their scope, and protect the decision endpoint.
-- The in-memory approval manager is not durable or distributed. Multi-worker deployments require a transactional store with atomic compare-and-consume semantics.
 - SHA-256 action fingerprints bind data equality; they do not authenticate a user, prove that the human understood the action, or prevent a malicious tool adapter from ignoring the approved payload.
+- SHA-256 action fingerprints bind data equality; they do not authenticate a user, prove that the human understood the action, or prevent a malicious tool adapter from ignoring the approved payload.
+
+## Durable approval storage
+- Both SDKs expose an `ApprovalStore` contract, an `InMemoryApprovalStore` default, and a `SqliteApprovalStore` adapter.
+- Python uses the standard-library `sqlite3` module. TypeScript accepts a synchronous SQLite database handle; the integration tests use `better-sqlite3`.
+- Consumption is a single conditional SQL `UPDATE` matching request ID, principal, tool, action fingerprint, approved status, non-null approver, and expiry. Only one competing update can change approved to consumed.
+- SQLite persistence survives manager/process restarts when the same database file is reopened.
+- Workers must share the same database file on storage with reliable SQLite locking. For multi-host deployments, use a transactional server database.
+- Keep the database private, access-controlled, and backed up. The SDK does not encrypt summaries or fingerprints.
+- Custom `ApprovalStore` implementations must enforce atomic compare-and-consume semantics across workers; read-then-write is unsafe.
+- The TypeScript SQLite adapter is synchronous; offload it from latency-sensitive event loops or supply an async transactional adapter.
 
 ## Human approval lifecycle
 - Requests have a finite expiry and move through pending, approved, denied, expired, and consumed states.
