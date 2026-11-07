@@ -9,7 +9,7 @@ from .approvals import (
     SqliteApprovalStore,
     ApprovalStore,
 )
-from .events import InMemoryRecorder, RunEvent
+from .events import InMemoryRecorder, RunEvent, TraceContext
 from .fingerprint import action_fingerprint, canonical_action_json
 from .policy import PolicyDecision, PolicyDeniedError, PolicyRule, ToolPolicy
 from .registry import (
@@ -47,6 +47,7 @@ __all__ = [
     "ToolExecutionTimeoutError",
     "ToolExecutor",
     "ToolPolicy",
+    "TraceContext",
     "action_fingerprint",
     "canonical_action_json",
 ]
