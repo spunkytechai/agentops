@@ -1,6 +1,6 @@
 # AgentOps Python SDK
 
-Dependency-free contracts for tool authorization and execution-event recording.
+Dependency-free contracts for tool authorization and execution-event recording. Durable approval storage uses Python's standard-library `sqlite3` module.
 
 From the repository root:
 
@@ -28,5 +28,7 @@ async def main():
 
 asyncio.run(main())
 ```
+
+Use `ApprovalManager(store=SqliteApprovalStore("agentops.sqlite3"))` to persist approval requests across restarts. Close the store during application shutdown. Use a shared SQLite file only on storage with reliable SQLite locking.
 
 The async executor cancels the coroutine when its timeout expires. Cancellation is cooperative; integrations must propagate cancellation and external side effects may already have occurred. The default recorder stores metadata only; tool arguments and results are excluded.
