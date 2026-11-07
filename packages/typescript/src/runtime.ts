@@ -39,7 +39,7 @@ export class ToolExecutor {
   async execute<T>(
     toolName: string,
     operation: (signal: AbortSignal) => T | Promise<T>,
-    runId = globalThis.crypto.randomUUID(),
+    runId: string = globalThis.crypto.randomUUID(),
     options: ToolExecutionOptions = {},
   ): Promise<T> {
     const timeoutMs = options.timeoutMs;
