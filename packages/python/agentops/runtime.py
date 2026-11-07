@@ -82,7 +82,7 @@ class ToolExecutor:
                     if timeout_seconds is None
                     else await asyncio.wait_for(task, timeout=timeout_seconds)
                 )
-            except TimeoutError as exc:
+            except asyncio.TimeoutError as exc:
                 # Preserve a TimeoutError raised by the operation itself.
                 if task.done() and not task.cancelled():
                     raise
