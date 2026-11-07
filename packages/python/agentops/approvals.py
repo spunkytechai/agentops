@@ -1,10 +1,13 @@
 """In-memory human approval workflow for consequential tool actions."""
 from dataclasses import dataclass
 import math
+from collections.abc import Mapping
 from threading import RLock
 from time import time
-from typing import Callable
+from typing import Any, Callable
 from uuid import uuid4
+
+from .fingerprint import action_fingerprint
 
 
 class ApprovalRequiredError(PermissionError):
@@ -25,6 +28,7 @@ class ApprovalRequest:
     expires_at: float
     approver_id: str | None = None
     reason: str | None = None
+    action_fingerprint: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +37,7 @@ class ApprovalGrant:
     principal_id: str
     tool_name: str
     approver_id: str
+    action_fingerprint: str | None = None
 
 
 @dataclass(slots=True)
@@ -60,6 +65,7 @@ class ApprovalManager:
         summary: str,
         *,
         ttl_seconds: float = 300,
+        action: Mapping[str, Any] | None = None,
     ) -> ApprovalRequest:
         for value, name in (
             (principal_id, "principal_id"),
@@ -76,6 +82,7 @@ class ApprovalManager:
         ):
             raise ValueError("ttl_seconds must be a positive finite number")
 
+        fingerprint = action_fingerprint(action) if action is not None else None
         request = ApprovalRequest(
             request_id=str(uuid4()),
             principal_id=principal_id,
@@ -83,6 +90,7 @@ class ApprovalManager:
             summary=summary,
             status="pending",
             expires_at=self._clock() + ttl_seconds,
+            action_fingerprint=fingerprint,
         )
         with self._lock:
             self._records[request.request_id] = _ApprovalRecord(request)
@@ -123,7 +131,12 @@ class ApprovalManager:
             return record.request
 
     def consume(
-        self, request_id: str, principal_id: str, tool_name: str
+        self,
+        request_id: str,
+        principal_id: str,
+        tool_name: str,
+        *,
+        action: Mapping[str, Any] | None = None,
     ) -> ApprovalGrant:
         with self._lock:
             record = self._expire_if_needed(self._get_record(request_id))
@@ -136,12 +149,16 @@ class ApprovalManager:
                 raise ApprovalRequiredError(
                     f"Approval request {request_id!r} is {request.status}"
                 )
+            supplied_fingerprint = action_fingerprint(action) if action is not None else None
+            if supplied_fingerprint != request.action_fingerprint:
+                raise ApprovalRequiredError("Approval does not match the canonical action")
             record.request = self._replace(request, status="consumed")
             return ApprovalGrant(
                 request_id=request.request_id,
                 principal_id=request.principal_id,
                 tool_name=request.tool_name,
                 approver_id=request.approver_id,
+                action_fingerprint=request.action_fingerprint,
             )
 
     def _get_record(self, request_id: str) -> _ApprovalRecord:
@@ -166,6 +183,7 @@ class ApprovalManager:
             "expires_at": request.expires_at,
             "approver_id": request.approver_id,
             "reason": request.reason,
+            "action_fingerprint": request.action_fingerprint,
         }
         values.update(changes)
         return ApprovalRequest(**values)
