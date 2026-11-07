@@ -127,28 +127,18 @@ export class SqliteAgentRegistryStore implements AgentRegistryStore {
   }
 
   list(agentId?: string): readonly AgentDefinition[] {
-    const rows = agentId === undefined
+    const statement = agentId === undefined
       ? this.database.prepare(`
           SELECT agent_id, version, description, tools_json
           FROM agentops_agents ORDER BY agent_id COLLATE BINARY, version COLLATE BINARY
-        `).all?.() 
-      : undefined;
-    if (agentId === undefined) {
-      if (rows !== undefined) return rows.map((row) => this.fromRow(row));
-      const result = this.database.prepare(`
-        SELECT agent_id, version, description, tools_json
-        FROM agentops_agents ORDER BY agent_id COLLATE BINARY, version COLLATE BINARY
-      `);
-      const all = (result as unknown as { all(): unknown[] }).all();
-      return all.map((row) => this.fromRow(row));
-    }
-    const result = this.database.prepare(`
-      SELECT agent_id, version, description, tools_json
-      FROM agentops_agents WHERE agent_id = ?
-      ORDER BY agent_id COLLATE BINARY, version COLLATE BINARY
-    `);
-    const statement = result as unknown as { all(...parameters: unknown[]): unknown[] };
-    return statement.all(agentId).map((row) => this.fromRow(row));
+        `)
+      : this.database.prepare(`
+          SELECT agent_id, version, description, tools_json
+          FROM agentops_agents WHERE agent_id = ?
+          ORDER BY agent_id COLLATE BINARY, version COLLATE BINARY
+        `);
+    const rows = agentId === undefined ? statement.all() : statement.all(agentId);
+    return rows.map((row) => this.fromRow(row));
   }
 
   private fromRow(value: unknown): AgentDefinition {
