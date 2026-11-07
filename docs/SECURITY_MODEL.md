@@ -19,7 +19,6 @@
 - Principal IDs must be derived from trusted host authentication, not model-generated content.
 - The executor does not authenticate approvers. The host application must authenticate the approver, authorize their scope, and protect the decision endpoint.
 - SHA-256 action fingerprints bind data equality; they do not authenticate a user, prove that the human understood the action, or prevent a malicious tool adapter from ignoring the approved payload.
-- SHA-256 action fingerprints bind data equality; they do not authenticate a user, prove that the human understood the action, or prevent a malicious tool adapter from ignoring the approved payload.
 
 ## Durable approval storage
 - Both SDKs expose an `ApprovalStore` contract, an `InMemoryApprovalStore` default, and a `SqliteApprovalStore` adapter.
@@ -36,7 +35,7 @@
 - Only pending requests may be approved or denied.
 - Approved requests can be consumed once; replay attempts fail.
 - Expired, denied, pending, consumed, unknown, or mismatched requests do not produce grants.
-- Python state transitions are protected by a process-local reentrant lock; TypeScript transitions are synchronous within one JavaScript isolate.
+- The in-memory store uses a process-local lock in Python and synchronous state transitions in TypeScript. SQLite uses conditional SQL updates for state transitions and consumption.
 
 ## Execution timeouts and cancellation
 - Python async timeouts cancel the executing task and wait for cancellation handling.
