@@ -50,3 +50,30 @@ class ToolExecutorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScopedPolicyTests(unittest.TestCase):
+    def test_principal_scoped_allow_only_matches_that_principal(self):
+        from agentops import PolicyRule
+        policy = ToolPolicy(rules=(PolicyRule("analyst", "reports.read", "allow"),))
+        self.assertTrue(policy.evaluate("reports.read", principal_id="analyst").allowed)
+        self.assertFalse(policy.evaluate("reports.read", principal_id="operator").allowed)
+        self.assertFalse(policy.evaluate("reports.read").allowed)
+
+    def test_principal_scoped_deny_overrides_global_allow(self):
+        from agentops import PolicyRule
+        policy = ToolPolicy(
+            allowed_tools=frozenset({"payments.refund"}),
+            rules=(PolicyRule("intern", "payments.refund", "deny"),),
+        )
+        self.assertFalse(policy.evaluate("payments.refund", principal_id="intern").allowed)
+        self.assertTrue(policy.evaluate("payments.refund", principal_id="finance").allowed)
+
+    def test_invalid_policy_rule_is_rejected(self):
+        from agentops import PolicyRule
+        with self.assertRaises(ValueError):
+            PolicyRule(" ", "reports.read", "allow")
+        with self.assertRaises(ValueError):
+            PolicyRule("analyst", "reports.read", "unknown")
+
+

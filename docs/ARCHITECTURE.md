@@ -1,13 +1,27 @@
 # Architecture
 
-## Initial foundation
-The Python and TypeScript SDKs share four conceptual primitives:
-1. **Policy:** exact tool identifiers, explicit allow-list, explicit deny-list, deny precedence.
-2. **Execution boundary:** authorization happens before an operation is invoked.
-3. **Events:** lifecycle metadata for start, success, and failure.
-4. **Recorder:** pluggable event sink with an in-memory local implementation.
+## Core primitives
+The Python and TypeScript SDKs share five conceptual primitives:
+
+1. **Agent definition:** immutable agent ID, version, description, and declared tool identifiers.
+2. **Agent registry:** process-local lookup keyed by exact agent ID and version; duplicate versions are rejected.
+3. **Policy:** exact tool identifiers, global allow/deny sets, and principal-scoped allow/deny rules.
+4. **Execution boundary:** authorization happens before an operation is invoked.
+5. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink.
 
 Core packages are dependency-light and provider-neutral.
+
+## Registry semantics
+The initial registry is in-memory and local to one process. It supports exact version retrieval and deterministic listing. It does not resolve semantic-version ranges, persist data, coordinate replicas, or imply that an agent definition is executable. A future persistence layer must preserve immutable version identity and explicit conflict handling.
+
+## Policy evaluation order
+1. Validate the requested tool identifier and optional principal identifier.
+2. Apply global deny rules and matching principal-scoped deny rules.
+3. Apply a global allow rule.
+4. Apply a matching principal-scoped allow rule.
+5. Deny if no allow rule matched.
+
+An explicit deny always wins, including when a global allow also matches. Scoped rules match only the exact principal and tool identifiers. Wildcards and implicit role inheritance are not supported.
 
 ## Trust boundaries
 Model output is untrusted. A model proposing a tool call does not authorize it. The host application maps tool names to concrete operations and routes each operation through the policy-enforcing executor.
@@ -18,11 +32,10 @@ The executor is an application-level authorization boundary, not a sandbox. It d
 The default recorder stores tool name, run ID, event type, timestamp, duration, and error class. It excludes prompts, arguments, results, headers, tokens, and exception messages.
 
 ## Planned evolution
-- versioned agent and tool contracts;
+- shared cross-language conformance fixtures;
+- persistent registry and scoped identities;
+- policy composition and human approval workflows;
 - async and streaming runtime;
-- scoped identities and policy composition;
 - OpenTelemetry-compatible exporters;
 - evaluation datasets and deterministic replay;
 - isolated worker adapters and resource budgets.
-
-Cross-language behavior should be specified by shared conformance fixtures before expanding the public API.
