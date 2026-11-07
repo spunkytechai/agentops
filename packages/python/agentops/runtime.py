@@ -170,6 +170,14 @@ class ToolExecutor:
         timeout_seconds: float | None = None,
     ) -> T:
         """Async equivalent of execute_approved with the same action binding."""
+        if timeout_seconds is not None and (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(timeout_seconds)
+            or timeout_seconds <= 0
+        ):
+            raise ValueError("timeout_seconds must be a positive finite number")
+
         decision = self.policy.evaluate(tool_name, principal_id=principal_id)
         if not decision.allowed:
             raise PolicyDeniedError(tool_name, decision.reason)
