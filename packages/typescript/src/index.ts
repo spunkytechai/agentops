@@ -28,6 +28,10 @@ export {
   AgentDefinition,
   AgentNotFoundError,
   AgentRegistry,
+  InMemoryAgentRegistryStore,
+  SqliteAgentRegistryStore,
+  type AgentRegistryStore,
+  type AgentRegistryOptions,
   type AgentDefinitionOptions,
 } from "./registry.js";
 export {
