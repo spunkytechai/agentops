@@ -22,3 +22,7 @@ class ActionFingerprintTests(unittest.TestCase):
     def test_unsupported_floats_are_rejected(self):
         with self.assertRaises(TypeError):
             action_fingerprint({"amount": 2.5})
+
+    def test_unpaired_surrogate_is_rejected(self):
+        with self.assertRaises(UnicodeEncodeError):
+            action_fingerprint({"invalid": "\\ud800"})
