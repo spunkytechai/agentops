@@ -1,4 +1,4 @@
-import type { EventRecorder, RunEvent } from "./observability.js";
+import type { EventRecorder, RunEvent, TraceContext } from "./observability.js";
 import { InMemoryRecorder } from "./observability.js";
 import type { ApprovalManager } from "./approvals.js";
 import { PolicyDeniedError, ToolPolicy } from "./policy.js";
@@ -7,6 +7,7 @@ import { canonicalActionJson, type ActionObject } from "./fingerprint.js";
 export interface ToolExecutionOptions {
   readonly timeoutMs?: number;
   readonly principalId?: string;
+  readonly traceContext?: TraceContext;
 }
 
 export interface ToolApprovalExecutionOptions extends ToolExecutionOptions {
@@ -47,17 +48,14 @@ export class ToolExecutor {
         (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
       throw new TypeError("timeoutMs must be a positive finite number");
     }
-
     const decision = this.policy.evaluate(toolName, options.principalId);
-    if (!decision.allowed) {
-      throw new PolicyDeniedError(toolName, decision.reason);
-    }
+    if (!decision.allowed) throw new PolicyDeniedError(toolName, decision.reason);
 
-    this.recorder.record(this.event("tool.started", runId, toolName));
+    const context = options.traceContext ?? (await import("./observability.js")).TraceContext.create();
+    this.recorder.record(this.event("tool.started", runId, toolName, undefined, undefined, context));
     const started = performance.now();
     const controller = new AbortController();
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-
     try {
       const operationPromise = Promise.resolve().then(() => operation(controller.signal));
       let result: T;
@@ -72,15 +70,12 @@ export class ToolExecutor {
         });
         result = await Promise.race([operationPromise, timeoutPromise]);
       }
-      this.recorder.record(this.event("tool.succeeded", runId, toolName, performance.now() - started));
+      this.recorder.record(this.event("tool.succeeded", runId, toolName, performance.now() - started, undefined, context));
       return result;
     } catch (error) {
       this.recorder.record(this.event(
-        "tool.failed",
-        runId,
-        toolName,
-        performance.now() - started,
-        error instanceof Error ? error.name : "UnknownError",
+        "tool.failed", runId, toolName, performance.now() - started,
+        error instanceof Error ? error.name : "UnknownError", context,
       ));
       throw error;
     } finally {
@@ -99,26 +94,14 @@ export class ToolExecutor {
         (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
       throw new TypeError("timeoutMs must be a positive finite number");
     }
-
     const decision = this.policy.evaluate(toolName, options.principalId);
-    if (!decision.allowed) {
-      throw new PolicyDeniedError(toolName, decision.reason);
-    }
-
-    // Clone the canonical JSON snapshot so caller mutation cannot substitute
-    // a different payload between approval verification and tool invocation.
+    if (!decision.allowed) throw new PolicyDeniedError(toolName, decision.reason);
     const approvedAction = JSON.parse(canonicalActionJson(options.action)) as ActionObject;
     options.approvalManager.consume(
-      options.approvalRequestId,
-      options.principalId,
-      toolName,
-      approvedAction,
+      options.approvalRequestId, options.principalId, toolName, approvedAction,
     );
     return this.execute(
-      toolName,
-      (signal) => operation(approvedAction, signal),
-      runId,
-      options,
+      toolName, (signal) => operation(approvedAction, signal), runId, options,
     );
   }
 
@@ -128,14 +111,17 @@ export class ToolExecutor {
     toolName: string,
     durationMs?: number,
     errorType?: string,
+    traceContext?: TraceContext,
   ): RunEvent {
     return {
-      type,
-      runId,
-      toolName,
-      timestamp: new Date().toISOString(),
+      type, runId, toolName, timestamp: new Date().toISOString(),
       ...(durationMs === undefined ? {} : { durationMs }),
       ...(errorType === undefined ? {} : { errorType }),
+      ...(traceContext === undefined ? {} : {
+        traceId: traceContext.traceId,
+        spanId: traceContext.spanId,
+        ...(traceContext.parentSpanId === undefined ? {} : { parentSpanId: traceContext.parentSpanId }),
+      }),
     };
   }
 }
