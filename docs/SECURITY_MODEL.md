@@ -53,6 +53,13 @@
 - The default in-memory store remains process-local and non-durable.
 - The registry does not authenticate publishers, verify agent artifacts, approve deployment, or prove that declared tools are safe. Do not treat registration as proof that an agent definition or its tools are trusted.
 
+## Trace metadata and telemetry
+- Trace IDs, span IDs, and parent-span IDs are correlation metadata, not authentication credentials or authorization claims.
+- Both SDKs validate non-zero lowercase hexadecimal identifiers using W3C Trace Context identifier widths.
+- Trace context is caller-controlled when explicitly supplied. Do not treat it as proof of caller identity or trust it across an untrusted boundary without validation and context replacement at the host boundary.
+- Events contain operational metadata only; the SDK does not automatically export telemetry or redact arbitrary custom data supplied by a host exporter.
+- This release does not implement OTLP transport, traceparent parsing, sampling, or a complete OpenTelemetry SDK.
+
 ## Limitations
 The initial SDK is not a process sandbox, secret manager, network firewall, prompt-injection detector, model-output validator, or distributed audit log. An allow-list does not replace least-privilege credentials or infrastructure isolation.
 
@@ -69,5 +76,6 @@ The initial SDK is not a process sandbox, secret manager, network firewall, prom
 10. Set finite timeouts and propagate cancellation through each integration.
 11. Apply process, network, and resource isolation at infrastructure boundaries.
 12. Redact sensitive data before exporting telemetry.
+13. Treat trace context as correlation only; derive identity and authorization from trusted host authentication.
 
 The threat model is preliminary and will evolve with the runtime and integration surface.

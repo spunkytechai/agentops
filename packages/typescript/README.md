@@ -39,6 +39,20 @@ registry.register(new AgentDefinition({
 
 Both SDKs use the same `agentops_agents` SQLite schema. A composite primary key prevents duplicate versions across connections. The application owns the database connection lifecycle. For multi-host deployments, implement `AgentRegistryStore` using a transactional database.
 
+## Trace correlation
+
+```ts
+import { TraceContext } from "@spunkytech/agentops";
+
+const parent = TraceContext.create();
+const child = TraceContext.create(parent);
+await executor.execute("reports.read", fetchReport, "report-run-1", {
+  traceContext: child,
+});
+```
+
+When omitted, the executor creates trace and span identifiers. This provides W3C Trace Context-compatible identifiers, not `traceparent` parsing or OTLP export.
+
 ## Example
 ```ts
 import { InMemoryRecorder, ToolExecutor, ToolPolicy } from "@spunkytech/agentops";

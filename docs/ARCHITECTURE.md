@@ -9,7 +9,7 @@ The Python and TypeScript SDKs share these conceptual primitives:
 4. **Approval manager:** expiring, one-time decisions bound to a principal, tool, and optional canonical action fingerprint.
 5. **Approval store:** pluggable state persistence with in-memory and SQLite implementations; consumption is atomic.
 6. **Execution boundary:** policy authorization before approval consumption and tool invocation; asynchronous calls can be bounded by a timeout.
-7. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink.
+7. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink. W3C-compatible trace/span identifiers correlate events and parent-child execution contexts.
 
 Core packages are dependency-light and provider-neutral.
 
@@ -48,8 +48,12 @@ Model output is untrusted. A model proposing a tool call does not authorize it. 
 
 The executor is an application-level authorization boundary, not a sandbox. It does not isolate processes, constrain network access, or impose CPU/memory limits. Untrusted code must run in a hardened worker or container.
 
+## Trace context propagation
+
+`TraceContext` carries a 32-character lowercase hexadecimal trace ID, a 16-character lowercase hexadecimal span ID, and an optional 16-character parent span ID. All identifiers must be non-zero, and a span cannot name itself as its parent. The executor accepts an explicit context or generates one for the execution. `TraceContext.create(parent)` creates a child span ID while retaining the trace ID and setting the parent span ID. Start, success, failure, and timeout events emitted by one execution carry the same context. This follows the identifier widths and character constraints used by W3C Trace Context, but does not implement `traceparent` header parsing, sampling flags, span export, or the OpenTelemetry SDK.
+
 ## Data minimization
-The default recorder stores tool name, run ID, event type, timestamp, duration, and error class. It excludes prompts, arguments, results, headers, tokens, and exception messages.
+The default recorder stores tool name, run ID, event type, timestamp, duration, error class, and optional trace/span identifiers. It excludes prompts, arguments, results, headers, tokens, and exception messages.
 
 ## Planned evolution
 - transactional server-database adapters for approval and registry stores;

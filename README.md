@@ -21,6 +21,7 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 - Synchronous and asynchronous tool execution in Python.
 - Asynchronous TypeScript execution with configurable timeouts and abort signaling.
 - Structured start, success, failure, and timeout events.
+- W3C-compatible trace, span, and parent-span identifiers propagated through execution lifecycle events in both SDKs.
 - In-memory recorders that exclude prompts, arguments, results, and credentials.
 - Shared cross-language policy and action-fingerprint fixtures.
 - Automated unit tests and CI across supported Python versions, plus Node.js.
@@ -174,6 +175,32 @@ database.close();
 ```
 
 Both SDKs share the `agentops_agents` SQLite schema. The composite primary key (`agent_id`, `version`) rejects duplicate registration across connections; existing versions are never overwritten. Tool identifiers are stored as a JSON array. SQLite is suitable for a single host or workers sharing a correctly locked database file. Use a transactional server-database implementation for multi-host deployments.
+
+## Trace correlation
+
+Both SDKs expose an immutable `TraceContext` with W3C Trace Context-compatible 32-character trace IDs and 16-character span IDs. A tool execution accepts an optional context; when omitted, the executor creates one. All lifecycle events for that execution share the same trace and span identifiers. Use `TraceContext.create(parent)` to create a child span context that retains the trace ID and records the parent span ID.
+
+Python:
+
+```python
+from agentops import TraceContext
+
+parent = TraceContext.create()
+child = TraceContext.create(parent)
+executor.execute("reports.read", operation, trace_context=child)
+```
+
+TypeScript:
+
+```ts
+import { TraceContext } from "@spunkytech/agentops";
+
+const parent = TraceContext.create();
+const child = TraceContext.create(parent);
+await executor.execute("reports.read", operation, "report-run-1", { traceContext: child });
+```
+
+This is trace-context propagation and correlation metadata, not an OTLP exporter or a complete OpenTelemetry SDK. Events remain metadata-only; applications are responsible for redaction and secure export.
 
 ## Security boundary
 

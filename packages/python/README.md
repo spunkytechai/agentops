@@ -29,6 +29,20 @@ async def main():
 asyncio.run(main())
 ```
 
+Pass a `TraceContext` to correlate lifecycle events with a parent operation:
+
+```python
+from agentops import TraceContext
+
+parent = TraceContext.create()
+child = TraceContext.create(parent)
+result = executor.execute(
+    "reports.read", fetch_report, run_id="report-run-1", trace_context=child
+)
+```
+
+If omitted, the executor creates a trace and span ID. The context is W3C Trace Context identifier-compatible, but the SDK does not currently parse or emit `traceparent` headers or export OTLP.
+
 Use `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persist immutable agent versions across restarts. The composite key rejects duplicate `(agent_id, version)` pairs. Close the store during application shutdown.
 
 Use `ApprovalManager(store=SqliteApprovalStore("agentops.sqlite3"))` to persist approval requests across restarts. Close the store during application shutdown. Use a shared SQLite file only on storage with reliable SQLite locking.
