@@ -5,6 +5,9 @@ from .approvals import (
     ApprovalManager,
     ApprovalRequest,
     ApprovalRequiredError,
+    InMemoryApprovalStore,
+    SqliteApprovalStore,
+    ApprovalStore,
 )
 from .events import InMemoryRecorder, RunEvent
 from .fingerprint import action_fingerprint, canonical_action_json
@@ -27,6 +30,9 @@ __all__ = [
     "ApprovalManager",
     "ApprovalRequest",
     "ApprovalRequiredError",
+    "ApprovalStore",
+    "InMemoryApprovalStore",
+    "SqliteApprovalStore",
     "InMemoryRecorder",
     "PolicyDecision",
     "PolicyDeniedError",
