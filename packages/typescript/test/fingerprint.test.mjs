@@ -23,3 +23,7 @@ test("object key order does not change the action fingerprint", () => {
 test("unsupported floating point values are rejected", () => {
   assert.throws(() => actionFingerprint({ amount: 2.5 }), TypeError);
 });
+
+test("unpaired Unicode surrogates are rejected", () => {
+  assert.throws(() => actionFingerprint({ invalid: "\\ud800" }), TypeError);
+});
