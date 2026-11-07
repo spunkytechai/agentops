@@ -77,3 +77,47 @@ class ScopedPolicyTests(unittest.TestCase):
             PolicyRule("analyst", "reports.read", "unknown")
 
 
+
+
+class AsyncToolExecutorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_async_execution_records_lifecycle(self):
+        recorder = InMemoryRecorder()
+        executor = ToolExecutor(ToolPolicy(frozenset({"async.lookup"})), recorder)
+
+        async def operation():
+            return {"value": 42}
+
+        result = await executor.execute_async("async.lookup", operation, run_id="async-1")
+        self.assertEqual(result, {"value": 42})
+        self.assertEqual(
+            [event.event_type for event in recorder.events],
+            ["tool.started", "tool.succeeded"],
+        )
+
+    async def test_timeout_cancels_operation_and_records_failure(self):
+        import asyncio
+        recorder = InMemoryRecorder()
+        executor = ToolExecutor(ToolPolicy(frozenset({"async.wait"})), recorder)
+        cancelled = asyncio.Event()
+
+        async def operation():
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+        from agentops import ToolExecutionTimeoutError
+        with self.assertRaises(ToolExecutionTimeoutError):
+            await executor.execute_async("async.wait", operation, timeout_seconds=0.01)
+
+        self.assertTrue(cancelled.is_set())
+        self.assertEqual(recorder.events[-1].event_type, "tool.failed")
+        self.assertEqual(recorder.events[-1].error_type, "ToolExecutionTimeoutError")
+
+    async def test_invalid_timeout_is_rejected_before_execution(self):
+        recorder = InMemoryRecorder()
+        executor = ToolExecutor(ToolPolicy(frozenset({"async.wait"})), recorder)
+        with self.assertRaises(ValueError):
+            await executor.execute_async("async.wait", lambda: None, timeout_seconds=0)
+        self.assertEqual(recorder.events, ())

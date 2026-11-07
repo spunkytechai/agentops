@@ -71,3 +71,34 @@ test("rejects invalid policy rules", async () => {
   assert.throws(() => new PolicyRule({ principalId: " ", toolName: "reports.read", effect: "allow" }), TypeError);
   assert.throws(() => new PolicyRule({ principalId: "analyst", toolName: "reports.read", effect: "unknown" }), TypeError);
 });
+
+
+test("execution timeout aborts the tool signal and records failure", async () => {
+  const recorder = new InMemoryRecorder();
+  const executor = new ToolExecutor(new ToolPolicy({ allowedTools: ["async.wait"] }), recorder);
+  const { ToolExecutionTimeoutError } = await import("../dist/index.js");
+  let receivedSignal;
+  await assert.rejects(
+    executor.execute(
+      "async.wait",
+      (signal) => new Promise((resolve) => {
+        receivedSignal = signal;
+        signal.addEventListener("abort", () => resolve("late"), { once: true });
+      }),
+      "timeout-1",
+      { timeoutMs: 10 },
+    ),
+    ToolExecutionTimeoutError,
+  );
+  assert.equal(receivedSignal.aborted, true);
+  assert.equal(recorder.events.at(-1).type, "tool.failed");
+  assert.equal(recorder.events.at(-1).errorType, "ToolExecutionTimeoutError");
+});
+
+test("rejects non-positive execution timeouts", async () => {
+  const executor = new ToolExecutor(new ToolPolicy({ allowedTools: ["async.wait"] }));
+  await assert.rejects(
+    executor.execute("async.wait", async () => "ok", "invalid-timeout", { timeoutMs: 0 }),
+    /timeoutMs must be a positive finite number/,
+  );
+});

@@ -12,12 +12,21 @@ python -m unittest discover -s packages/python/tests -v
 ```
 
 ```python
+import asyncio
 from agentops import InMemoryRecorder, ToolExecutor, ToolPolicy
 
-recorder = InMemoryRecorder()
-executor = ToolExecutor(ToolPolicy(allowed_tools=frozenset({"weather.lookup"})), recorder)
-value = executor.execute("weather.lookup", lambda: 22, run_id="demo")
-print(value, [event.event_type for event in recorder.events])
+async def main():
+    recorder = InMemoryRecorder()
+    executor = ToolExecutor(ToolPolicy(frozenset({"weather.lookup"})), recorder)
+    result = await executor.execute_async(
+        "weather.lookup",
+        fetch_weather,
+        run_id="weather-run-1",
+        timeout_seconds=5,
+    )
+    print(result, [event.event_type for event in recorder.events])
+
+asyncio.run(main())
 ```
 
-The default recorder stores metadata only; tool arguments and results are excluded.
+The async executor cancels the coroutine when its timeout expires. Cancellation is cooperative; integrations must propagate cancellation and external side effects may already have occurred. The default recorder stores metadata only; tool arguments and results are excluded.

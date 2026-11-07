@@ -7,7 +7,7 @@ from .registry import (
     AgentNotFoundError,
     AgentRegistry,
 )
-from .runtime import ToolExecutor
+from .runtime import ToolExecutionTimeoutError, ToolExecutor
 
 __all__ = [
     "AgentAlreadyRegisteredError",
@@ -19,6 +19,7 @@ __all__ = [
     "PolicyDeniedError",
     "PolicyRule",
     "RunEvent",
+    "ToolExecutionTimeoutError",
     "ToolExecutor",
     "ToolPolicy",
 ]

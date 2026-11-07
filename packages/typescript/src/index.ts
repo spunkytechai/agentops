@@ -14,4 +14,4 @@ export {
   AgentRegistry,
   type AgentDefinitionOptions,
 } from "./registry.js";
-export { ToolExecutor } from "./runtime.js";
+export { ToolExecutionTimeoutError, ToolExecutor, type ToolExecutionOptions } from "./runtime.js";
