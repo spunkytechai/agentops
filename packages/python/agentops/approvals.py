@@ -120,7 +120,9 @@ class SqliteApprovalStore:
         )
         self._connection.row_factory = sqlite3.Row
         self._lock = RLock()
-        self._connection.execute("PRAGMA busy_timeout = 30000")
+        if timeout_seconds <= 0 or not math.isfinite(timeout_seconds):
+            raise ValueError("timeout_seconds must be a positive finite number")
+        self._connection.execute(f"PRAGMA busy_timeout = {int(timeout_seconds * 1000)}")
         self._connection.execute("""
             CREATE TABLE IF NOT EXISTS agentops_approvals (
                 request_id TEXT PRIMARY KEY,
