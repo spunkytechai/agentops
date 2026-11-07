@@ -94,6 +94,12 @@ export class ToolExecutor {
     runId: string,
     options: ToolApprovalExecutionOptions,
   ): Promise<T> {
+    const timeoutMs = options.timeoutMs;
+    if (timeoutMs !== undefined &&
+        (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
+      throw new TypeError("timeoutMs must be a positive finite number");
+    }
+
     const decision = this.policy.evaluate(toolName, options.principalId);
     if (!decision.allowed) {
       throw new PolicyDeniedError(toolName, decision.reason);
