@@ -16,7 +16,7 @@ class ActionFingerprintTests(unittest.TestCase):
 
     def test_object_key_order_does_not_change_fingerprint(self):
         action = FIXTURE["action"]
-        reordered = {"currency": action["currency"], "order_id": action["order_id"], "amount": action["amount"]}
+        reordered = dict(reversed(list(action.items())))
         self.assertEqual(action_fingerprint(action), action_fingerprint(reordered))
 
     def test_unsupported_floats_are_rejected(self):
