@@ -1,9 +1,19 @@
 import type { EventRecorder, RunEvent } from "./observability.js";
 import { InMemoryRecorder } from "./observability.js";
+import type { ApprovalManager } from "./approvals.js";
 import { PolicyDeniedError, ToolPolicy } from "./policy.js";
+import { canonicalActionJson, type ActionObject } from "./fingerprint.js";
 
 export interface ToolExecutionOptions {
   readonly timeoutMs?: number;
+  readonly principalId?: string;
+}
+
+export interface ToolApprovalExecutionOptions extends ToolExecutionOptions {
+  readonly principalId: string;
+  readonly approvalManager: ApprovalManager;
+  readonly approvalRequestId: string;
+  readonly action: ActionObject;
 }
 
 export class ToolExecutionTimeoutError extends Error {
@@ -29,7 +39,7 @@ export class ToolExecutor {
   async execute<T>(
     toolName: string,
     operation: (signal: AbortSignal) => T | Promise<T>,
-    runId = globalThis.crypto.randomUUID(),
+    runId: string = globalThis.crypto.randomUUID(),
     options: ToolExecutionOptions = {},
   ): Promise<T> {
     const timeoutMs = options.timeoutMs;
@@ -38,7 +48,7 @@ export class ToolExecutor {
       throw new TypeError("timeoutMs must be a positive finite number");
     }
 
-    const decision = this.policy.evaluate(toolName);
+    const decision = this.policy.evaluate(toolName, options.principalId);
     if (!decision.allowed) {
       throw new PolicyDeniedError(toolName, decision.reason);
     }
@@ -76,6 +86,40 @@ export class ToolExecutor {
     } finally {
       if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
     }
+  }
+
+  async executeApproved<T>(
+    toolName: string,
+    operation: (action: ActionObject, signal: AbortSignal) => T | Promise<T>,
+    runId: string,
+    options: ToolApprovalExecutionOptions,
+  ): Promise<T> {
+    const timeoutMs = options.timeoutMs;
+    if (timeoutMs !== undefined &&
+        (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
+      throw new TypeError("timeoutMs must be a positive finite number");
+    }
+
+    const decision = this.policy.evaluate(toolName, options.principalId);
+    if (!decision.allowed) {
+      throw new PolicyDeniedError(toolName, decision.reason);
+    }
+
+    // Clone the canonical JSON snapshot so caller mutation cannot substitute
+    // a different payload between approval verification and tool invocation.
+    const approvedAction = JSON.parse(canonicalActionJson(options.action)) as ActionObject;
+    options.approvalManager.consume(
+      options.approvalRequestId,
+      options.principalId,
+      toolName,
+      approvedAction,
+    );
+    return this.execute(
+      toolName,
+      (signal) => operation(approvedAction, signal),
+      runId,
+      options,
+    );
   }
 
   private event(

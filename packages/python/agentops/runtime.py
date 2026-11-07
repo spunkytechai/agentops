@@ -1,12 +1,15 @@
 """Policy-enforced synchronous and asynchronous tool execution."""
 import asyncio
+import json
 import math
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from time import perf_counter
-from typing import TypeVar
+from typing import Any, TypeVar
 from uuid import uuid4
 
+from .approvals import ApprovalManager
 from .events import EventRecorder, InMemoryRecorder, RunEvent
+from .fingerprint import canonical_action_json
 from .policy import PolicyDeniedError, ToolPolicy
 
 T = TypeVar("T")
@@ -26,9 +29,15 @@ class ToolExecutor:
         self.policy = policy
         self.recorder = recorder if recorder is not None else InMemoryRecorder()
 
-    def execute(self, tool_name: str, operation: Callable[[], T],
-                *, run_id: str | None = None) -> T:
-        decision = self.policy.evaluate(tool_name)
+    def execute(
+        self,
+        tool_name: str,
+        operation: Callable[[], T],
+        *,
+        run_id: str | None = None,
+        principal_id: str | None = None,
+    ) -> T:
+        decision = self.policy.evaluate(tool_name, principal_id=principal_id)
         if not decision.allowed:
             raise PolicyDeniedError(tool_name, decision.reason)
 
@@ -50,6 +59,37 @@ class ToolExecutor:
         ))
         return result
 
+    def execute_approved(
+        self,
+        tool_name: str,
+        operation: Callable[[Mapping[str, Any]], T],
+        *,
+        principal_id: str,
+        approval_manager: ApprovalManager,
+        approval_request_id: str,
+        action: Mapping[str, Any],
+        run_id: str | None = None,
+    ) -> T:
+        """Consume an action-bound approval immediately before invoking a tool.
+
+        The callback receives a canonical snapshot of the exact action that was
+        approved. Integrations must use that object as the actual tool input.
+        """
+        decision = self.policy.evaluate(tool_name, principal_id=principal_id)
+        if not decision.allowed:
+            raise PolicyDeniedError(tool_name, decision.reason)
+
+        approved_action = json.loads(canonical_action_json(action))
+        approval_manager.consume(
+            approval_request_id, principal_id, tool_name, action=approved_action
+        )
+        return self.execute(
+            tool_name,
+            lambda: operation(approved_action),
+            run_id=run_id,
+            principal_id=principal_id,
+        )
+
     async def execute_async(
         self,
         tool_name: str,
@@ -57,6 +97,7 @@ class ToolExecutor:
         *,
         run_id: str | None = None,
         timeout_seconds: float | None = None,
+        principal_id: str | None = None,
     ) -> T:
         """Execute an async tool with optional timeout and task cancellation."""
         if timeout_seconds is not None and (
@@ -67,7 +108,7 @@ class ToolExecutor:
         ):
             raise ValueError("timeout_seconds must be a positive finite number")
 
-        decision = self.policy.evaluate(tool_name)
+        decision = self.policy.evaluate(tool_name, principal_id=principal_id)
         if not decision.allowed:
             raise PolicyDeniedError(tool_name, decision.reason)
 
@@ -83,7 +124,6 @@ class ToolExecutor:
                     else await asyncio.wait_for(task, timeout=timeout_seconds)
                 )
             except asyncio.TimeoutError as exc:
-                # Preserve a TimeoutError raised by the operation itself.
                 if task.done() and not task.cancelled():
                     raise
                 self.recorder.record(RunEvent.create(
@@ -116,3 +156,40 @@ class ToolExecutor:
             duration_ms=(perf_counter() - started) * 1000,
         ))
         return result
+
+    async def execute_async_approved(
+        self,
+        tool_name: str,
+        operation: Callable[[Mapping[str, Any]], Awaitable[T]],
+        *,
+        principal_id: str,
+        approval_manager: ApprovalManager,
+        approval_request_id: str,
+        action: Mapping[str, Any],
+        run_id: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> T:
+        """Async equivalent of execute_approved with the same action binding."""
+        if timeout_seconds is not None and (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(timeout_seconds)
+            or timeout_seconds <= 0
+        ):
+            raise ValueError("timeout_seconds must be a positive finite number")
+
+        decision = self.policy.evaluate(tool_name, principal_id=principal_id)
+        if not decision.allowed:
+            raise PolicyDeniedError(tool_name, decision.reason)
+
+        approved_action = json.loads(canonical_action_json(action))
+        approval_manager.consume(
+            approval_request_id, principal_id, tool_name, action=approved_action
+        )
+        return await self.execute_async(
+            tool_name,
+            lambda: operation(approved_action),
+            run_id=run_id,
+            timeout_seconds=timeout_seconds,
+            principal_id=principal_id,
+        )

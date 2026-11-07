@@ -12,11 +12,13 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 - Deny-by-default tool authorization with global and principal-scoped rules.
 - Explicit deny precedence across global and scoped permissions.
 - Human approval state machine with pending, approved, denied, expired, and consumed states.
-- Principal- and tool-bound, expiring, one-time approval grants.
+- Principal-, tool-, and canonical-action-bound, expiring, one-time approval grants.
+- Execution-integrated approval gates in both SDKs.
 - Synchronous and asynchronous tool execution in Python.
 - Asynchronous TypeScript execution with configurable timeouts and abort signaling.
 - Structured start, success, failure, and timeout events.
 - In-memory recorders that exclude prompts, arguments, results, and credentials.
+- Shared cross-language policy and action-fingerprint fixtures.
 - Automated unit tests and CI across supported Python versions, plus Node.js.
 
 ## Why AgentOps?
@@ -27,6 +29,7 @@ AI agents combine probabilistic model output with tools that can read data, call
 
 - `packages/python/` — Python SDK and runtime foundation
 - `packages/typescript/` — TypeScript SDK foundation
+- `conformance/fixtures/` — language-neutral behavioral fixtures
 - `docs/` — architecture and security model
 - `examples/` — minimal usage examples
 
@@ -72,34 +75,47 @@ const result = await executor.execute(
 );
 ```
 
-## Human approval workflow
+## Action-bound human approval
 
-The approval manager is an explicit pre-execution workflow primitive. The host application creates a request, presents its summary to an authenticated human approver, records the decision, and consumes the grant immediately before the matching tool call.
+For consequential actions, bind the approval to the exact action payload and use the execution-integrated gate. The executor checks policy first, consumes the matching approval once, and passes the canonical action snapshot to the operation.
 
 ```python
-from agentops import ApprovalManager, ToolExecutor, ToolPolicy
+from agentops import ApprovalManager, PolicyRule, ToolExecutor, ToolPolicy
 
+action = {"order_id": "1042", "amount": 2500, "currency": "INR"}
 approvals = ApprovalManager()
 request = approvals.request(
     principal_id="authenticated-user-17",
     tool_name="payments.refund",
     summary="Refund order 1042 for INR 2,500",
+    action=action,
     ttl_seconds=120,
 )
 # The host application must authenticate and authorize the approver.
 approvals.approve(request.request_id, approver_id="finance-admin-2")
 
-# Consume once, then execute the exact approved tool under normal policy.
-approvals.consume(request.request_id, "authenticated-user-17", "payments.refund")
-executor = ToolExecutor(ToolPolicy(frozenset({"payments.refund"})))
-result = executor.execute("payments.refund", lambda: refund_order("1042"))
+executor = ToolExecutor(ToolPolicy(rules=(
+    PolicyRule("authenticated-user-17", "payments.refund", "allow"),
+)))
+result = executor.execute_approved(
+    "payments.refund",
+    lambda approved_action: refund_order(**approved_action),
+    principal_id="authenticated-user-17",
+    approval_manager=approvals,
+    approval_request_id=request.request_id,
+    action=action,
+)
 ```
 
-The application must ensure the operation arguments match the approved summary. Do not treat model-supplied identity as authenticated identity. Approval does not override a tool-policy deny.
+TypeScript exposes the equivalent `executeApproved` method. Its operation callback receives the approved action and an `AbortSignal`.
+
+Action payloads use deterministic JSON canonicalization and SHA-256. To guarantee identical fingerprints across Python and TypeScript, payloads support JSON objects, arrays, strings, booleans, null, and safe integers. Floating-point numbers are rejected; represent monetary values as integer minor units or decimal strings.
+
+The executor passes a canonical snapshot of the payload whose fingerprint was approved. Tool adapters must use that supplied object as the actual invocation input; do not reconstruct or substitute hidden arguments. Principal IDs must come from trusted host authentication, never model output.
 
 ## Security boundary
 
-Policy and approval are application-level controls, **not a sandbox**. The approval manager and registry are process-local and non-persistent. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. A one-time grant is bound to a principal and tool, but the host must bind the approved action details to the actual invocation. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
+Policy and approval are application-level controls, **not a sandbox**. The approval manager and registry are process-local and non-persistent. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
 
 ## Roadmap
 
@@ -113,8 +129,8 @@ Policy and approval are application-level controls, **not a sandbox**. The appro
 - [x] Initial unit tests and CI workflow
 - [x] In-memory human approval state machine
 - [x] Shared cross-language policy conformance fixture and immutable policy snapshots
-- [ ] Policy composition and execution-integrated approval gates
-- [ ] Persistent registry and distributed identity management
+- [x] Canonical action fingerprints and execution-integrated approval gates
+- [ ] Persistent approval/registry storage and distributed identity management
 - [ ] OpenTelemetry exporters and evaluation engine
 - [ ] Isolated worker adapters and deployment guides
 - [ ] Independent security review before stable release

@@ -9,6 +9,7 @@ export {
   type ApprovalRequestOptions,
   type ApprovalStatus,
 } from "./approvals.js";
+export { actionFingerprint, canonicalActionJson, type ActionObject, type ActionValue } from "./fingerprint.js";
 export {
   PolicyDeniedError,
   PolicyRule,
@@ -24,4 +25,9 @@ export {
   AgentRegistry,
   type AgentDefinitionOptions,
 } from "./registry.js";
-export { ToolExecutionTimeoutError, ToolExecutor, type ToolExecutionOptions } from "./runtime.js";
+export {
+  ToolExecutionTimeoutError,
+  ToolExecutor,
+  type ToolApprovalExecutionOptions,
+  type ToolExecutionOptions,
+} from "./runtime.js";

@@ -1,3 +1,5 @@
+import { actionFingerprint, type ActionObject } from "./fingerprint.js";
+
 export type ApprovalStatus = "pending" | "approved" | "denied" | "consumed" | "expired";
 
 export interface ApprovalRequestOptions {
@@ -5,6 +7,7 @@ export interface ApprovalRequestOptions {
   readonly toolName: string;
   readonly summary: string;
   readonly ttlSeconds?: number;
+  readonly action?: ActionObject;
 }
 
 export interface ApprovalRequest {
@@ -16,6 +19,7 @@ export interface ApprovalRequest {
   readonly expiresAt: number;
   readonly approverId?: string;
   readonly reason?: string;
+  readonly actionFingerprint?: string;
 }
 
 export interface ApprovalGrant {
@@ -23,6 +27,7 @@ export interface ApprovalGrant {
   readonly principalId: string;
   readonly toolName: string;
   readonly approverId: string;
+  readonly actionFingerprint?: string;
 }
 
 export interface ApprovalManagerOptions {
@@ -67,6 +72,7 @@ export class ApprovalManager {
       summary: options.summary,
       status: "pending",
       expiresAt: this.clock() + ttlSeconds * 1000,
+      ...(options.action === undefined ? {} : { actionFingerprint: actionFingerprint(options.action) }),
     });
     this.records.set(request.requestId, request);
     return request;
@@ -95,7 +101,12 @@ export class ApprovalManager {
     return this.replace(requestId, { status: "denied", approverId, reason });
   }
 
-  consume(requestId: string, principalId: string, toolName: string): ApprovalGrant {
+  consume(
+    requestId: string,
+    principalId: string,
+    toolName: string,
+    action?: ActionObject,
+  ): ApprovalGrant {
     const request = this.expireIfNeeded(this.getRecord(requestId));
     if (request.principalId !== principalId || request.toolName !== toolName) {
       throw new ApprovalRequiredError("Approval does not match this principal and tool");
@@ -106,12 +117,17 @@ export class ApprovalManager {
     if (request.status !== "approved" || request.approverId === undefined) {
       throw new ApprovalRequiredError(`Approval request "${requestId}" is ${request.status}`);
     }
+    const suppliedFingerprint = action === undefined ? undefined : actionFingerprint(action);
+    if (suppliedFingerprint !== request.actionFingerprint) {
+      throw new ApprovalRequiredError("Approval does not match the canonical action");
+    }
     this.replace(requestId, { status: "consumed" });
     return Object.freeze({
       requestId: request.requestId,
       principalId: request.principalId,
       toolName: request.toolName,
       approverId: request.approverId,
+      ...(request.actionFingerprint === undefined ? {} : { actionFingerprint: request.actionFingerprint }),
     });
   }
 
