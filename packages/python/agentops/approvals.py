@@ -133,7 +133,7 @@ class SqliteApprovalStore:
                 tool_name TEXT NOT NULL,
                 summary TEXT NOT NULL,
                 status TEXT NOT NULL,
-                expires_at REAL NOT NULL,
+                expires_at_ms REAL NOT NULL,
                 approver_id TEXT,
                 reason TEXT,
                 action_fingerprint TEXT
@@ -141,14 +141,14 @@ class SqliteApprovalStore:
         """)
         self._connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_agentops_approvals_status "
-            "ON agentops_approvals(status, expires_at)"
+            "ON agentops_approvals(status, expires_at_ms)"
         )
 
     def create(self, request: ApprovalRequest) -> None:
         with self._lock:
             self._connection.execute(
                 """INSERT INTO agentops_approvals
-                (request_id, principal_id, tool_name, summary, status, expires_at,
+                (request_id, principal_id, tool_name, summary, status, expires_at_ms,
                  approver_id, reason, action_fingerprint)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 self._values(request),
@@ -183,8 +183,8 @@ class SqliteApprovalStore:
                 """UPDATE agentops_approvals SET status = 'consumed'
                 WHERE request_id = ? AND principal_id = ? AND tool_name = ?
                   AND status = 'approved' AND approver_id IS NOT NULL
-                  AND expires_at > ? AND action_fingerprint IS ?""",
-                (request_id, principal_id, tool_name, now, action_fingerprint),
+                  AND expires_at_ms > ? AND action_fingerprint IS ?""",
+                (request_id, principal_id, tool_name, now * 1000, action_fingerprint),
             )
             if cursor.rowcount != 1:
                 return None
@@ -201,7 +201,7 @@ class SqliteApprovalStore:
     def _values(request: ApprovalRequest) -> tuple[Any, ...]:
         return (
             request.request_id, request.principal_id, request.tool_name, request.summary,
-            request.status, request.expires_at, request.approver_id, request.reason,
+            request.status, request.expires_at * 1000, request.approver_id, request.reason,
             request.action_fingerprint,
         )
 
@@ -210,7 +210,7 @@ class SqliteApprovalStore:
         return ApprovalRequest(
             request_id=row["request_id"], principal_id=row["principal_id"],
             tool_name=row["tool_name"], summary=row["summary"], status=row["status"],
-            expires_at=row["expires_at"], approver_id=row["approver_id"],
+            expires_at=row["expires_at_ms"] / 1000, approver_id=row["approver_id"],
             reason=row["reason"], action_fingerprint=row["action_fingerprint"],
         )
 
