@@ -44,3 +44,30 @@ test("failures are recorded and rethrown", async () => {
   assert.equal(recorder.events.at(-1).type, "tool.failed");
   assert.equal(recorder.events.at(-1).errorType, "TypeError");
 });
+
+
+test("principal-scoped allow only matches the named principal", async () => {
+  const { PolicyRule } = await import("../dist/index.js");
+  const policy = new ToolPolicy({
+    rules: [new PolicyRule({ principalId: "analyst", toolName: "reports.read", effect: "allow" })],
+  });
+  assert.equal(policy.evaluate("reports.read", "analyst").allowed, true);
+  assert.equal(policy.evaluate("reports.read", "operator").allowed, false);
+  assert.equal(policy.evaluate("reports.read").allowed, false);
+});
+
+test("principal-scoped deny overrides a global allow", async () => {
+  const { PolicyRule } = await import("../dist/index.js");
+  const policy = new ToolPolicy({
+    allowedTools: ["payments.refund"],
+    rules: [new PolicyRule({ principalId: "intern", toolName: "payments.refund", effect: "deny" })],
+  });
+  assert.equal(policy.evaluate("payments.refund", "intern").allowed, false);
+  assert.equal(policy.evaluate("payments.refund", "finance").allowed, true);
+});
+
+test("rejects invalid policy rules", async () => {
+  const { PolicyRule } = await import("../dist/index.js");
+  assert.throws(() => new PolicyRule({ principalId: " ", toolName: "reports.read", effect: "allow" }), TypeError);
+  assert.throws(() => new PolicyRule({ principalId: "analyst", toolName: "reports.read", effect: "unknown" }), TypeError);
+});
