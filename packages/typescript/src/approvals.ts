@@ -34,6 +34,7 @@ export interface SqliteRunResult { readonly changes: number }
 export interface SqliteStatement {
   run(...parameters: unknown[]): SqliteRunResult;
   get(...parameters: unknown[]): unknown;
+  all(...parameters: unknown[]): unknown[];
 }
 export interface SqliteDatabase {
   exec(sql: string): void;
