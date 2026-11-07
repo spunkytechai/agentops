@@ -9,7 +9,7 @@ The Python and TypeScript SDKs share these conceptual primitives:
 4. **Approval manager:** expiring, one-time decisions bound to a principal, tool, and optional canonical action fingerprint.
 5. **Approval store:** pluggable state persistence with in-memory and SQLite implementations; consumption is atomic.
 5. **Execution boundary:** policy authorization before approval consumption and tool invocation; asynchronous calls can be bounded by a timeout.
-6. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink.
+7. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink.
 
 Core packages are dependency-light and provider-neutral.
 
