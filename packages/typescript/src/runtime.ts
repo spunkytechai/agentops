@@ -1,5 +1,4 @@
-import type { EventRecorder, RunEvent, TraceContext } from "./observability.js";
-import { InMemoryRecorder } from "./observability.js";
+import { InMemoryRecorder, TraceContext, type EventRecorder, type RunEvent } from "./observability.js";
 import type { ApprovalManager } from "./approvals.js";
 import { PolicyDeniedError, ToolPolicy } from "./policy.js";
 import { canonicalActionJson, type ActionObject } from "./fingerprint.js";
@@ -51,7 +50,7 @@ export class ToolExecutor {
     const decision = this.policy.evaluate(toolName, options.principalId);
     if (!decision.allowed) throw new PolicyDeniedError(toolName, decision.reason);
 
-    const context = options.traceContext ?? (await import("./observability.js")).TraceContext.create();
+    const context = options.traceContext ?? TraceContext.create();
     this.recorder.record(this.event("tool.started", runId, toolName, undefined, undefined, context));
     const started = performance.now();
     const controller = new AbortController();
