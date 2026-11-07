@@ -37,3 +37,11 @@ test("executor creates valid trace identifiers when no context is supplied", asy
   assert.match(recorder.events[0].spanId, /^[0-9a-f]{16}$/);
   assert.equal(recorder.events[0].parentSpanId, undefined);
 });
+
+test("child context keeps trace ID and links the parent span", () => {
+  const parent = TraceContext.create();
+  const child = TraceContext.create(parent);
+  assert.equal(child.traceId, parent.traceId);
+  assert.equal(child.parentSpanId, parent.spanId);
+  assert.notEqual(child.spanId, parent.spanId);
+});
