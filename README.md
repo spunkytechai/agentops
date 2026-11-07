@@ -10,9 +10,10 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 
 - Versioned, process-local agent registry in Python and TypeScript.
 - Deny-by-default tool authorization with global and principal-scoped rules.
-- Explicit deny precedence across global and principal-scoped permissions.
-- Execution wrappers that authorize before invoking tools.
-- Structured start, success, and failure events.
+- Explicit deny precedence across global and scoped permissions.
+- Synchronous and asynchronous tool execution in Python.
+- Asynchronous TypeScript execution with configurable timeouts and abort signaling.
+- Structured start, success, failure, and timeout events.
 - In-memory recorders that exclude prompts, arguments, results, and credentials.
 - Automated unit tests and CI across supported Python versions, plus Node.js.
 
@@ -37,19 +38,19 @@ python -m unittest discover -s packages/python/tests -v
 ```
 
 ```python
-from agentops import AgentDefinition, AgentRegistry, PolicyRule, ToolPolicy
+import asyncio
+from agentops import ToolExecutor, ToolPolicy
 
-registry = AgentRegistry()
-registry.register(AgentDefinition(
-    agent_id="support.assistant",
-    version="1.0.0",
-    tools=("knowledge.search", "ticket.create"),
-))
+async def main():
+    executor = ToolExecutor(ToolPolicy(frozenset({"weather.lookup"})))
+    result = await executor.execute_async(
+        "weather.lookup",
+        lambda: fetch_weather(),
+        timeout_seconds=5,
+    )
+    print(result)
 
-policy = ToolPolicy(rules=(
-    PolicyRule("support-agent", "knowledge.search", "allow"),
-))
-assert policy.evaluate("knowledge.search", principal_id="support-agent").allowed
+asyncio.run(main())
 ```
 
 ### TypeScript
@@ -60,9 +61,18 @@ npm install
 npm test
 ```
 
+```ts
+const result = await executor.execute(
+  "weather.lookup",
+  async (signal) => fetchWeather({ signal }),
+  "weather-run-1",
+  { timeoutMs: 5000 },
+);
+```
+
 ## Security boundary
 
-Global and principal-scoped policy rules are application-level authorization controls, **not a sandbox**. The current registry is process-local and does not persist or coordinate across replicas. The executor does not isolate processes, restrict network access, or impose resource limits. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
+Global and principal-scoped policy rules are application-level authorization controls, **not a sandbox**. The registry is process-local and non-persistent. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
 
 ## Roadmap
 
@@ -71,9 +81,11 @@ Global and principal-scoped policy rules are application-level authorization con
 - [x] Metadata-only execution event recording
 - [x] Versioned in-memory agent registry
 - [x] Principal-scoped policy rules
+- [x] Async Python execution and bounded TypeScript execution
+- [x] Timeout error recording and cancellation signaling
 - [x] Initial unit tests and CI workflow
 - [ ] Shared cross-language conformance fixtures
-- [ ] Async runtime, policy composition, and approval workflows
+- [ ] Policy composition and approval workflows
 - [ ] Persistent registry and distributed identity management
 - [ ] OpenTelemetry exporters and evaluation engine
 - [ ] Isolated worker adapters and deployment guides
