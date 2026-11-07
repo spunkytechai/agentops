@@ -1,4 +1,8 @@
-import type { SqliteDatabase } from "./approvals.js";
+import type { SqliteDatabase, SqliteStatement } from "./approvals.js";
+
+interface SqliteListStatement extends SqliteStatement {
+  all(...parameters: unknown[]): unknown[];
+}
 
 export interface AgentDefinitionOptions {
   readonly agentId: string;
@@ -127,7 +131,7 @@ export class SqliteAgentRegistryStore implements AgentRegistryStore {
   }
 
   list(agentId?: string): readonly AgentDefinition[] {
-    const statement = agentId === undefined
+    const statement = (agentId === undefined
       ? this.database.prepare(`
           SELECT agent_id, version, description, tools_json
           FROM agentops_agents ORDER BY agent_id COLLATE BINARY, version COLLATE BINARY
@@ -136,7 +140,7 @@ export class SqliteAgentRegistryStore implements AgentRegistryStore {
           SELECT agent_id, version, description, tools_json
           FROM agentops_agents WHERE agent_id = ?
           ORDER BY agent_id COLLATE BINARY, version COLLATE BINARY
-        `);
+        `)) as SqliteListStatement;
     const rows = agentId === undefined ? statement.all() : statement.all(agentId);
     return rows.map((row) => this.fromRow(row));
   }
