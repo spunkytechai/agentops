@@ -1,4 +1,5 @@
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -82,5 +83,31 @@ test("missing persisted agent throws AgentNotFoundError", () => {
   const db = new Database(":memory:");
   const registry = new AgentRegistry({ store: new SqliteAgentRegistryStore(db) });
   assert.throws(() => registry.get("missing.agent", "1.0.0"), AgentNotFoundError);
+  db.close();
+});
+
+test("shared conformance fixture round-trips through SQLite", () => {
+  const fixture = JSON.parse(
+    readFileSync("../../conformance/fixtures/agents.json", "utf8"),
+  );
+  const db = new Database(":memory:");
+  const registry = new AgentRegistry({ store: new SqliteAgentRegistryStore(db) });
+  for (const item of fixture.agents) {
+    registry.register(new AgentDefinition({
+      agentId: item.agent_id,
+      version: item.version,
+      description: item.description,
+      tools: item.tools,
+    }));
+  }
+  assert.deepEqual(
+    registry.list().map((agent) => ({
+      agent_id: agent.agentId,
+      version: agent.version,
+      description: agent.description,
+      tools: [...agent.tools],
+    })),
+    fixture.agents,
+  );
   db.close();
 });
