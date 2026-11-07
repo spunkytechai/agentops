@@ -28,7 +28,7 @@ export class TraceContext {
     }
     this.traceId = options.traceId;
     this.spanId = options.spanId;
-    this.parentSpanId = options.parentSpanId;
+    if (options.parentSpanId !== undefined) this.parentSpanId = options.parentSpanId;
     Object.freeze(this);
   }
 
