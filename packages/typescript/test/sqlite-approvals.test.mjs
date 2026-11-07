@@ -92,3 +92,34 @@ test("separate SQLite connections cannot consume the same approval twice", () =>
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("approval state survives closing and reopening a SQLite database", () => {
+  const directory = mkdtempSync(join(tmpdir(), "agentops-restart-"));
+  const path = join(directory, "approvals.sqlite3");
+  const firstDb = new Database(path);
+  try {
+    const first = new ApprovalManager({ store: new SqliteApprovalStore(firstDb) });
+    const request = first.request({
+      principalId: "finance-user", toolName: "payments.refund",
+      summary: "Refund order 1042",
+      action: { order_id: "1042", amount: 2500, currency: "INR" },
+    });
+    first.approve(request.requestId, "finance-admin");
+    firstDb.close();
+
+    const restartedDb = new Database(path);
+    try {
+      const restarted = new ApprovalManager({ store: new SqliteApprovalStore(restartedDb) });
+      const grant = restarted.consume(
+        request.requestId, "finance-user", "payments.refund",
+        { currency: "INR", amount: 2500, order_id: "1042" },
+      );
+      assert.equal(grant.approverId, "finance-admin");
+      assert.equal(restarted.get(request.requestId).status, "consumed");
+    } finally {
+      restartedDb.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
