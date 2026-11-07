@@ -1,6 +1,6 @@
 # AgentOps Python SDK
 
-Dependency-free contracts for tool authorization and execution-event recording. Durable approval storage uses Python's standard-library `sqlite3` module.
+Dependency-free contracts for tool authorization and execution-event recording. Durable approval and agent-registry storage use Python's standard-library `sqlite3` module.
 
 From the repository root:
 
@@ -28,6 +28,8 @@ async def main():
 
 asyncio.run(main())
 ```
+
+Use `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persist immutable agent versions across restarts. The composite key rejects duplicate `(agent_id, version)` pairs. Close the store during application shutdown.
 
 Use `ApprovalManager(store=SqliteApprovalStore("agentops.sqlite3"))` to persist approval requests across restarts. Close the store during application shutdown. Use a shared SQLite file only on storage with reliable SQLite locking.
 

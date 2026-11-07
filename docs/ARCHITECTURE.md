@@ -4,17 +4,17 @@
 The Python and TypeScript SDKs share these conceptual primitives:
 
 1. **Agent definition:** immutable agent ID, version, description, and declared tool identifiers.
-2. **Agent registry:** process-local lookup keyed by exact agent ID and version; duplicate versions are rejected.
+2. **Agent registry:** exact agent ID/version lookup with in-memory and SQLite-backed stores; duplicate versions are rejected atomically.
 3. **Policy:** exact tool identifiers, global allow/deny sets, and principal-scoped allow/deny rules.
 4. **Approval manager:** expiring, one-time decisions bound to a principal, tool, and optional canonical action fingerprint.
 5. **Approval store:** pluggable state persistence with in-memory and SQLite implementations; consumption is atomic.
-5. **Execution boundary:** policy authorization before approval consumption and tool invocation; asynchronous calls can be bounded by a timeout.
+6. **Execution boundary:** policy authorization before approval consumption and tool invocation; asynchronous calls can be bounded by a timeout.
 7. **Events and recorder:** lifecycle metadata for start, success, and failure, sent to a pluggable event sink.
 
 Core packages are dependency-light and provider-neutral.
 
 ## Registry semantics
-The registry is currently in-memory and local to one process. It supports exact version retrieval and deterministic listing. It does not resolve semantic-version ranges, persist data, coordinate replicas, or imply that an agent definition is executable. A future persistence layer must preserve immutable version identity and explicit conflict handling.
+The default registry store is in-memory. The optional SQLite store persists immutable agent definitions across restarts and connections using the shared `agentops_agents` schema. Its composite primary key on `(agent_id, version)` rejects duplicate registrations atomically; it never overwrites an existing version. Tool lists are serialized as JSON arrays. Both SDKs support exact version retrieval and deterministic listing. The registry does not resolve semantic-version ranges, coordinate multi-host replicas, verify artifacts, or imply that an agent definition is executable. For multi-host deployments, implement the store contract with a transactional server database.
 
 ## Policy evaluation order
 1. Validate the requested tool identifier and optional principal identifier.
@@ -52,7 +52,7 @@ The executor is an application-level authorization boundary, not a sandbox. It d
 The default recorder stores tool name, run ID, event type, timestamp, duration, and error class. It excludes prompts, arguments, results, headers, tokens, and exception messages.
 
 ## Planned evolution
-- persistent approval and registry stores with transactional one-time consumption;
+- transactional server-database adapters for approval and registry stores;
 - distributed identity and approval scopes;
 - OpenTelemetry-compatible exporters;
 - evaluation datasets and deterministic replay;

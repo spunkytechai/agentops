@@ -8,7 +8,9 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 
 ## What exists today
 
-- Versioned, process-local agent registry in Python and TypeScript.
+- Versioned agent registry in Python and TypeScript, with in-memory and durable SQLite stores.
+- Atomic duplicate-version protection across independent SQLite connections.
+- Shared Python/TypeScript agent registry conformance fixture.
 - Deny-by-default tool authorization with global and principal-scoped rules.
 - Explicit deny precedence across global and scoped permissions.
 - Human approval state machine with pending, approved, denied, expired, and consumed states.
@@ -136,6 +138,42 @@ const approvals = new ApprovalManager({ store: new SqliteApprovalStore(database)
 ```
 
 The SQLite adapter consumes a grant through one conditional SQL update that checks the request, principal, tool, action fingerprint, approved state, approver, and expiry. Competing consumers cannot both succeed. Workers must share the same database file on storage with reliable SQLite locking; use a transactional server database for multi-host deployments. The TypeScript host supplies and owns the synchronous SQLite driver and connection lifecycle.
+
+## Durable agent registry
+
+The default registry is in-memory. For persistent registrations, Python uses the standard-library SQLite driver:
+
+```python
+from agentops import AgentDefinition, AgentRegistry, SqliteAgentRegistryStore
+
+store = SqliteAgentRegistryStore("agentops.sqlite3")
+registry = AgentRegistry(store=store)
+registry.register(AgentDefinition(
+    "support.assistant", "1.0.0", "Customer support agent",
+    ("knowledge.search", "ticket.create"),
+))
+# Close the store during application shutdown.
+store.close()
+```
+
+TypeScript accepts a synchronous SQLite database handle:
+
+```ts
+import Database from "better-sqlite3";
+import { AgentDefinition, AgentRegistry, SqliteAgentRegistryStore } from "@spunkytech/agentops";
+
+const database = new Database("agentops.sqlite3");
+const registry = new AgentRegistry({ store: new SqliteAgentRegistryStore(database) });
+registry.register(new AgentDefinition({
+  agentId: "support.assistant", version: "1.0.0",
+  description: "Customer support agent",
+  tools: ["knowledge.search", "ticket.create"],
+}));
+// Close the database during application shutdown.
+database.close();
+```
+
+Both SDKs share the `agentops_agents` SQLite schema. The composite primary key (`agent_id`, `version`) rejects duplicate registration across connections; existing versions are never overwritten. Tool identifiers are stored as a JSON array. SQLite is suitable for a single host or workers sharing a correctly locked database file. Use a transactional server-database implementation for multi-host deployments.
 
 ## Security boundary
 

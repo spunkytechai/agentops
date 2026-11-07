@@ -44,8 +44,14 @@
 - Cancellation is cooperative. It cannot forcibly stop arbitrary native code, detached work, or undo side effects already accepted by external systems.
 - Do not treat a timeout as a sandbox or a guarantee that no external side effect occurred.
 
-## Registry
-The initial agent registry is process-local, in-memory, and non-persistent. It is not a distributed source of truth and does not provide cryptographic identity, deployment approval, or artifact integrity verification. Do not treat registration as proof that an agent definition or its tools are trusted.
+## Agent registry
+- Both SDKs expose an `AgentRegistryStore` contract with in-memory and SQLite implementations.
+- The shared `agentops_agents` table stores `agent_id`, `version`, `description`, and `tools_json`; both SDKs use JSON arrays for tool identifiers.
+- A composite primary key on `(agent_id, version)` makes duplicate registration atomic across independent SQLite connections. Existing versions are immutable; registration never updates or overwrites an existing record.
+- The SQLite store persists definitions across process restarts when the same database is reopened. The application owns connection lifecycle and database access controls.
+- SQLite is suitable for a single host or workers sharing a database file on storage with reliable locking. Use a transactional server database for multi-host deployments and implement the same atomic create contract.
+- The default in-memory store remains process-local and non-durable.
+- The registry does not authenticate publishers, verify agent artifacts, approve deployment, or prove that declared tools are safe. Do not treat registration as proof that an agent definition or its tools are trusted.
 
 ## Limitations
 The initial SDK is not a process sandbox, secret manager, network firewall, prompt-injection detector, model-output validator, or distributed audit log. An allow-list does not replace least-privilege credentials or infrastructure isolation.

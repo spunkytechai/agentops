@@ -1,0 +1,33 @@
+{
+  "schema": "agentops_agents.v1",
+  "agents": [
+    {
+      "agent_id": "research.agent",
+      "version": "1.0.0",
+      "description": "Research agent",
+      "tools": [
+        "web.search",
+        "document.read"
+      ]
+    },
+    {
+      "agent_id": "support.assistant",
+      "version": "1.0.0",
+      "description": "Support agent",
+      "tools": [
+        "knowledge.search",
+        "ticket.create"
+      ]
+    },
+    {
+      "agent_id": "support.assistant",
+      "version": "2.0.0",
+      "description": "Support agent with escalation",
+      "tools": [
+        "knowledge.search",
+        "ticket.create",
+        "ticket.escalate"
+      ]
+    }
+  ]
+}
