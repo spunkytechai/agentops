@@ -2,12 +2,13 @@
 
 Dependency-free contracts for tool authorization and execution-event recording.
 
+From the repository root:
+
 ```bash
-cd packages/python
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
-python -m unittest discover -s tests -v
+python -m unittest discover -s packages/python/tests -v
 ```
 
 ```python
