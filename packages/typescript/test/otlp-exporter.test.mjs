@@ -41,6 +41,6 @@ test("retries a failed HTTP export without losing the batch", async () => {
   }, { maxQueueSize: 1, maxRetries: 1 });
   exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z"));
   exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.001Z", { durationMs: 1 }));
-  assert.equal(exporter.flush(), 1);
+  assert.equal(await exporter.flush(), 1);
   assert.equal(calls, 2);
 });
