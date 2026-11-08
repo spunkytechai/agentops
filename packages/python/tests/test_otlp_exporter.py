@@ -81,6 +81,20 @@ class OtlpHttpSpanExporterTests(unittest.TestCase):
         self.assertEqual(exporter.dropped_spans, 2)
         self.assertEqual(exporter.flush(), 0)
 
+    def test_drops_events_with_unbounded_duration_metadata(self):
+        exporter = OtlpHttpSpanExporter(
+            "http://collector:4318", lambda url, headers, body: None
+        )
+        started = self.event("tool.started", "2026-11-08T00:00:00")
+        exporter.record(started)
+        ended = replace(
+            self.event("tool.succeeded", "2026-11-08T00:00:00.001"),
+            duration_ms=10 ** 1000,
+        )
+        exporter.record(ended)
+        self.assertEqual(exporter.dropped_spans, 1)
+        self.assertEqual(exporter.flush(), 0)
+
     def test_drops_events_with_invalid_trace_identifiers(self):
         exporter = OtlpHttpSpanExporter(
             "http://collector:4318", lambda url, headers, body: None
