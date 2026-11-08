@@ -54,12 +54,14 @@ def send_otlp(url, headers, body):
         if not 200 <= response.status < 300:
             raise RuntimeError(f"OTLP collector returned {response.status}")
 
-exporter = OtlpHttpSpanExporter("http://localhost:4318", send_otlp)
+exporter = OtlpHttpSpanExporter("http://localhost:4318", send_otlp, max_attribute_bytes=256)
 policy = ToolPolicy(frozenset({"reports.read"}))
 executor = ToolExecutor(policy, exporter)
 # Flush from a worker or controlled shutdown hook.
 exporter.flush()
 ```
+
+Exported string attributes are limited to 256 UTF-8 bytes by default. Spans with oversized metadata or invalid trace IDs are dropped and counted in `dropped_spans`. Keep run IDs and tool names free of secrets and personal data; configure collector authentication in the injected transport, not in the URL.
 
 Use `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persist immutable agent versions across restarts. The composite key rejects duplicate `(agent_id, version)` pairs. Close the store during application shutdown.
 

@@ -60,7 +60,7 @@ import { OtlpHttpSpanExporter, ToolExecutor } from "@spunkytech/agentops";
 const exporter = new OtlpHttpSpanExporter("http://localhost:4318", async (url, headers, body) => {
   const response = await fetch(url, { method: "POST", headers, body });
   if (!response.ok) throw new Error("OTLP collector returned " + response.status);
-});
+}, { maxAttributeBytes: 256 });
 const executor = new ToolExecutor(policy, exporter);
 // Await exporter.flush() from a worker or controlled shutdown hook.
 ```

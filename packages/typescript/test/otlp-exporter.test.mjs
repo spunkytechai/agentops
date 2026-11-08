@@ -74,3 +74,72 @@ test("serializes concurrent flushes to preserve FIFO delivery", async () => {
   assert.deepEqual(await Promise.all([firstFlush, secondFlush]), [2, 0]);
   assert.deepEqual(sent, ["first", "second"]);
 });
+
+test("rejects collector URLs containing embedded credentials", () => {
+  assert.throws(
+    () => new OtlpHttpSpanExporter("https://user:password@collector:4318", () => {}),
+    TypeError,
+  );
+});
+
+test("drops spans with oversized exported metadata", async () => {
+  const exporter = new OtlpHttpSpanExporter(
+    "http://collector:4318", () => {}, { maxAttributeBytes: 8 },
+  );
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", { runId: "é".repeat(5) }));
+  exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.001Z", { runId: "é".repeat(5) }));
+  assert.equal(exporter.droppedSpans, 1);
+  assert.equal(await exporter.flush(), 0);
+
+  exporter.record(event("tool.started", "2026-11-08T00:00:01.000Z"));
+  exporter.record(event("tool.failed", "2026-11-08T00:00:01.001Z", {
+    errorType: "SensitiveErrorName",
+  }));
+  assert.equal(exporter.droppedSpans, 2);
+  assert.equal(await exporter.flush(), 0);
+});
+
+test("rejects invalid trace identifiers and does not retain arbitrary event fields", async () => {
+  const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {});
+  const invalid = event("tool.started", "2026-11-08T00:00:00.000Z", { traceId: "x".repeat(10_000) });
+  exporter.record(invalid);
+  assert.equal(exporter.droppedSpans, 1);
+
+  let secretGetterRead = false;
+  const started = event("tool.started", "2026-11-08T00:00:01.000Z");
+  Object.defineProperty(started, "prompt", {
+    enumerable: true,
+    get() { secretGetterRead = true; return "private prompt"; },
+  });
+  exporter.record(started);
+  assert.equal(secretGetterRead, false);
+  exporter.record(event("tool.succeeded", "2026-11-08T00:00:01.001Z"));
+  assert.equal(await exporter.flush(), 1);
+});
+
+test("drops malformed Unicode metadata and trace IDs with trailing newlines", () => {
+  const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {});
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", {
+    runId: "\ud800",
+  }));
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", {
+    traceId: "1".repeat(32) + "\n",
+  }));
+  assert.equal(exporter.droppedSpans, 2);
+});
+
+test("drops spans with invalid duration metadata", async () => {
+  const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {});
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z"));
+  exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.001Z", {
+    durationMs: "x".repeat(10_000),
+  }));
+  assert.equal(exporter.droppedSpans, 1);
+  assert.equal(await exporter.flush(), 0);
+});
+
+test("rejects timestamps without an explicit timezone", () => {
+  const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {});
+  exporter.record(event("tool.started", "2026-11-08T00:00:00"));
+  assert.equal(exporter.droppedSpans, 1);
+});
