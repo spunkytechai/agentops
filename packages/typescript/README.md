@@ -106,3 +106,19 @@ console.log(report.weightedScore, report.passRate);
 ```
 
 Use `NumericToleranceMetric(0.5)` for numeric outputs. Evaluation cases run sequentially; dataset storage, model-provider calls, and baseline persistence remain host responsibilities.
+
+## Persist evaluation runs and baselines
+
+```ts
+import Database from "better-sqlite3";
+import { SqliteEvaluationRunStore } from "@spunkytech/agentops";
+
+const database = new Database("agentops-evaluations.sqlite3");
+const store = new SqliteEvaluationRunStore(database);
+const saved = store.save(report, "answer-quality-2026-11-08");
+store.setBaseline("answer-quality", saved.runId);
+const baseline = store.getBaseline("answer-quality");
+// Close the database during application shutdown.
+```
+
+The store persists report and per-case score metadata only. It does not persist dataset inputs or model outputs. `InMemoryEvaluationRunStore` is available for tests and local development.
