@@ -4,7 +4,7 @@ export type OtlpHttpTransport = (
   url: string,
   headers: Readonly<Record<string, string>>,
   body: string,
-) => void;
+) => void | Promise<void>;
 
 export interface OtlpHttpSpanExporterOptions {
   readonly maxQueueSize?: number;
