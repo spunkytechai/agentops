@@ -7,7 +7,7 @@ import math
 import sqlite3
 from pathlib import Path
 from threading import RLock
-from time import time
+from time import time_ns
 from typing import Callable, Protocol
 from uuid import uuid4
 
@@ -128,8 +128,8 @@ def _decode(value: str) -> EvaluationReport:
 class InMemoryEvaluationRunStore:
     """Thread-safe process-local evaluation history and baseline pointers."""
 
-    def __init__(self, *, clock: Callable[[], float] | None = None) -> None:
-        self._clock = clock or (lambda: time() * 1000)
+    def __init__(self, *, clock: Callable[[], int | float] | None = None) -> None:
+        self._clock = clock or (lambda: time_ns() // 1_000_000)
         self._runs: dict[str, EvaluationRun] = {}
         self._baselines: dict[str, str] = {}
         self._lock = RLock()
@@ -185,12 +185,12 @@ class SqliteEvaluationRunStore:
     """SQLite history store; baseline changes are suite-checked and atomic."""
 
     def __init__(
-        self, database: str | Path, *, clock: Callable[[], float] | None = None,
+        self, database: str | Path, *, clock: Callable[[], int | float] | None = None,
         timeout_seconds: float = 30.0,
     ) -> None:
         if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)) or not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be a positive finite number")
-        self._clock = clock or (lambda: time() * 1000)
+        self._clock = clock or (lambda: time_ns() // 1_000_000)
         self._connection = sqlite3.connect(
             str(database), timeout=timeout_seconds, isolation_level=None, check_same_thread=False,
         )
