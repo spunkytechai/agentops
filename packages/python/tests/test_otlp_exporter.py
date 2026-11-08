@@ -64,11 +64,11 @@ class OtlpHttpSpanExporterTests(unittest.TestCase):
             max_attribute_bytes=8,
         )
         exporter.record(self.event(
-            "tool.started", "2026-11-08T00:00:00", run_id="r" * 9
+            "tool.started", "2026-11-08T00:00:00", run_id="é" * 5
         ))
         exporter.record(self.event(
             "tool.succeeded", "2026-11-08T00:00:00.001",
-            run_id="r" * 9, duration_ms=1,
+            run_id="é" * 5, duration_ms=1,
         ))
         self.assertEqual(exporter.dropped_spans, 1)
         self.assertEqual(exporter.flush(), 0)
