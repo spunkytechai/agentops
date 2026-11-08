@@ -35,6 +35,8 @@ class EvaluationRunStoreTests(unittest.TestCase):
         store = InMemoryEvaluationRunStore()
         store.save(self.report, run_id="run-1")
         with self.assertRaises(EvaluationRunStoreError):
+            store.save(self.report, run_id="")
+        with self.assertRaises(EvaluationRunStoreError):
             store.save(self.report, run_id="run-1")
         with self.assertRaises(EvaluationRunStoreError):
             store.set_baseline("other-suite", "run-1")
@@ -45,6 +47,8 @@ class EvaluationRunStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "evaluation.sqlite3"
             store = SqliteEvaluationRunStore(database, clock=lambda: 1_800_000_000_123)
+            with self.assertRaises(EvaluationRunStoreError):
+                store.save(self.report, run_id="")
             saved = store.save(self.report, run_id="durable-1")
             store.set_baseline("support-quality", "durable-1")
             store.close()
