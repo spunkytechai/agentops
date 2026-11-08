@@ -8,6 +8,7 @@ export interface DockerWorkerOptions extends WorkerProcessOptions {
   readonly cpuLimit?: number;
   readonly pidsLimit?: number;
   readonly tmpfsSizeBytes?: number;
+  readonly maxConcurrentWorkers?: number;
 }
 
 function positiveSafeInteger(value: number, name: string): void {
@@ -51,6 +52,10 @@ export class DockerWorker {
   private readonly cpuLimit: number;
   private readonly pidsLimit: number;
   private readonly tmpfsSizeBytes: number;
+  private readonly timeoutMs: number;
+  private readonly maxConcurrentWorkers: number;
+  private activeWorkers = 0;
+  private readonly waiters: Array<{ resolve: () => void; timer: ReturnType<typeof setTimeout> }> = [];
 
   constructor(
     private readonly image: string,
@@ -61,6 +66,9 @@ export class DockerWorker {
     }
     this.dockerExecutable = options.dockerExecutable ?? "docker";
     if (!this.dockerExecutable.trim()) throw new TypeError("dockerExecutable must be non-empty");
+    this.timeoutMs = options.timeoutMs ?? 30_000;
+    this.maxConcurrentWorkers = options.maxConcurrentWorkers ?? 4;
+    positiveSafeInteger(this.maxConcurrentWorkers, "maxConcurrentWorkers");
     this.memoryLimitBytes = options.memoryLimitBytes ?? 268_435_456;
     this.cpuLimit = options.cpuLimit ?? 1;
     this.pidsLimit = options.pidsLimit ?? 64;
@@ -70,7 +78,7 @@ export class DockerWorker {
     positiveSafeInteger(this.tmpfsSizeBytes, "tmpfsSizeBytes");
     if (!Number.isFinite(this.cpuLimit) || this.cpuLimit <= 0) throw new TypeError("cpuLimit must be positive and finite");
     this.workerOptions = {
-      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+      timeoutMs: this.timeoutMs,
       ...(options.maxInputBytes !== undefined ? { maxInputBytes: options.maxInputBytes } : {}),
       ...(options.maxOutputBytes !== undefined ? { maxOutputBytes: options.maxOutputBytes } : {}),
     };
@@ -89,13 +97,45 @@ export class DockerWorker {
     ];
   }
 
+  private async acquireSlot(): Promise<void> {
+    if (this.activeWorkers < this.maxConcurrentWorkers) {
+      this.activeWorkers += 1;
+      return;
+    }
+    await new Promise<void>((resolve, reject) => {
+      const waiter = {
+        resolve: () => {
+          clearTimeout(waiter.timer);
+          resolve();
+        },
+        timer: setTimeout(() => {
+          const index = this.waiters.indexOf(waiter);
+          if (index >= 0) this.waiters.splice(index, 1);
+          reject(new WorkerExecutionError("worker concurrency wait deadline exceeded"));
+        }, this.timeoutMs),
+      };
+      this.waiters.push(waiter);
+    });
+  }
+
+  private releaseSlot(): void {
+    const next = this.waiters.shift();
+    if (next) next.resolve();
+    else this.activeWorkers -= 1;
+  }
+
   async execute(toolName: string, input: unknown, options: { readonly requestId?: string } = {}): Promise<unknown> {
-    const name = `agentops-worker-${randomUUID()}`;
-    const worker = new WorkerProcess(this.dockerExecutable, this.runArgs(name), this.workerOptions);
+    await this.acquireSlot();
     try {
-      return await worker.execute(toolName, input, options);
+      const name = `agentops-worker-${randomUUID()}`;
+      const worker = new WorkerProcess(this.dockerExecutable, this.runArgs(name), this.workerOptions);
+      try {
+        return await worker.execute(toolName, input, options);
+      } finally {
+        await removeContainer(this.dockerExecutable, name);
+      }
     } finally {
-      await removeContainer(this.dockerExecutable, name);
+      this.releaseSlot();
     }
   }
 }
