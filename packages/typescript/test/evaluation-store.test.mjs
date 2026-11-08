@@ -73,3 +73,17 @@ test("SQLite baseline update is suite-bound", async () => {
   assert.equal(store.getBaseline("different-suite"), undefined);
   database.close();
 });
+
+test("SQLite store rejects invalid reports before persisting a run ID", async () => {
+  const database = new Database(":memory:");
+  const store = new SqliteEvaluationRunStore(database);
+  const report = await makeReport();
+  const invalid = { ...report, passedCases: 0, failedCases: 0 };
+
+  assert.throws(() => store.save(invalid, "retryable-run"), EvaluationRunStoreError);
+  assert.equal(store.get("retryable-run"), undefined);
+
+  const saved = store.save(report, "retryable-run");
+  assert.equal(saved.runId, "retryable-run");
+  database.close();
+});
