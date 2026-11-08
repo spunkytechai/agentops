@@ -221,6 +221,8 @@ print(report.weighted_score, report.pass_rate)
 # regression = compare_evaluations(baseline, report)
 ```
 
+Evaluation reports can be persisted using `EvaluationRunStore` or `SqliteEvaluationRunStore`. Run IDs are unique, and each suite has one replaceable baseline pointer. Baseline updates are accepted only for an existing run from that exact suite. Python and TypeScript share the same SQLite schema and report JSON field names.
+
 ## Security boundary
 
 Policy and approval are application-level controls, **not a sandbox**. The default agent registry is process-local; its optional SQLite store persists immutable definitions across restarts but does not verify agent artifacts or publisher identity. SQLite approval storage provides durable state and atomic single-use transitions, but does not authenticate approvers or protect the database file. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
@@ -245,6 +247,7 @@ Policy and approval are application-level controls, **not a sandbox**. The defau
 - [x] Initial OTLP/HTTP JSON trace exporter for Python and TypeScript
 - [ ] OpenTelemetry SDK integration, sampling, and automatic instrumentation
 - [x] Deterministic evaluation engine and baseline regression comparison
+- [x] Persistent evaluation run history and suite-specific baselines
 - [ ] Isolated worker adapters and deployment guides
 - [ ] Independent security review before stable release
 
