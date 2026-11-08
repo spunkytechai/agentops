@@ -8,11 +8,38 @@ from collections.abc import Callable, Iterable
 from typing import Any, Protocol
 
 
-def _canonical_json(value: Any) -> str:
-    try:
-        return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("evaluation values must be finite JSON-compatible data") from exc
+def _validate_json(value: Any) -> None:
+    if value is None or type(value) in (str, bool):
+        return
+    if isinstance(value, int) and not isinstance(value, bool):
+        if abs(value) > 9_007_199_254_740_991:
+            raise ValueError("evaluation integers must be JavaScript-safe")
+        return
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("evaluation values must be finite JSON-compatible data")
+        return
+    if isinstance(value, list):
+        for item in value:
+            _validate_json(item)
+        return
+    if isinstance(value, dict) and all(isinstance(key, str) for key in value):
+        for item in value.values():
+            _validate_json(item)
+        return
+    raise ValueError("evaluation values must be finite JSON-compatible data")
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right
+    if isinstance(left, dict) and isinstance(right, dict):
+        return left.keys() == right.keys() and all(_json_equal(left[key], right[key]) for key in left)
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(_json_equal(a, b) for a, b in zip(left, right, strict=True))
+    return type(left) is type(right) and left == right
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,8 +54,8 @@ class EvaluationCase:
             raise ValueError("case_id must be a non-empty string")
         if isinstance(self.weight, bool) or not isinstance(self.weight, (int, float)) or not math.isfinite(self.weight) or self.weight <= 0:
             raise ValueError("weight must be a positive finite number")
-        _canonical_json(self.input)
-        _canonical_json(self.expected)
+        _validate_json(self.input)
+        _validate_json(self.expected)
 
 
 class EvaluationMetric(Protocol):
@@ -43,7 +70,7 @@ class ExactMatchMetric:
     name: str = "exact_match"
 
     def score(self, expected: Any, actual: Any) -> float:
-        return 1.0 if _canonical_json(expected) == _canonical_json(actual) else 0.0
+        _validate_json(expected)\n        _validate_json(actual)\n        return 1.0 if _json_equal(expected, actual) else 0.0
 
 
 @dataclass(frozen=True, slots=True)
