@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 import math
 from collections.abc import Callable, Iterable
 from typing import Any, Protocol
@@ -70,7 +69,9 @@ class ExactMatchMetric:
     name: str = "exact_match"
 
     def score(self, expected: Any, actual: Any) -> float:
-        _validate_json(expected)\n        _validate_json(actual)\n        return 1.0 if _json_equal(expected, actual) else 0.0
+        _validate_json(expected)
+        _validate_json(actual)
+        return 1.0 if _json_equal(expected, actual) else 0.0
 
 
 @dataclass(frozen=True, slots=True)
