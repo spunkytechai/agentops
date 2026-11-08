@@ -73,5 +73,25 @@ class EvaluationRunStoreTests(unittest.TestCase):
             store.close()
 
 
+
+    def test_timestamp_must_be_an_exact_javascript_safe_integer(self):
+        invalid_values = (1.5, 9_007_199_254_740_992)
+        for value in invalid_values:
+            with self.subTest(value=value):
+                memory = InMemoryEvaluationRunStore(clock=lambda: value)
+                with self.assertRaises(EvaluationRunStoreError):
+                    memory.save(self.report, run_id="invalid-memory-clock")
+
+                with tempfile.TemporaryDirectory() as directory:
+                    store = SqliteEvaluationRunStore(
+                        Path(directory) / "evaluation.sqlite3",
+                        clock=lambda: value,
+                    )
+                    try:
+                        with self.assertRaises(EvaluationRunStoreError):
+                            store.save(self.report, run_id="invalid-sqlite-clock")
+                    finally:
+                        store.close()
+
 if __name__ == "__main__":
     unittest.main()
