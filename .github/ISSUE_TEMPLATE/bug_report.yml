@@ -1,43 +1,28 @@
 name: Bug report
-description: Report a reproducible defect in AgentOps.
+description: Report a reproducible defect in AgentOps
 title: "[Bug]: "
-labels: ["bug", "needs-triage"]
+labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
-      value: |
-        Thanks for helping improve AgentOps. Do not include credentials, private prompts, customer data, or production traces.
+      value: "Do not include API keys, credentials, private prompts, customer data, or sensitive traces. Report vulnerabilities privately using SECURITY.md."
   - type: input
     id: version
     attributes:
-      label: AgentOps version
-      description: Include the package version or commit SHA.
-      placeholder: "0.x.y"
+      label: AgentOps version or commit
     validations:
       required: true
   - type: dropdown
     id: sdk
     attributes:
       label: SDK
-      options:
-        - Python
-        - TypeScript
-        - Both
-        - Documentation / tooling
+      options: [Python, TypeScript, Both, "Docker worker"]
     validations:
       required: true
-  - type: textarea
-    id: environment
+  - type: input
+    id: runtime
     attributes:
-      label: Environment
-      description: OS, runtime version, database adapter, and relevant configuration (redact secrets).
-    validations:
-      required: true
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to reproduce
-      description: Provide the smallest deterministic reproduction.
+      label: Runtime and operating system
     validations:
       required: true
   - type: textarea
@@ -53,9 +38,14 @@ body:
     validations:
       required: true
   - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      render: text
+    validations:
+      required: true
+  - type: textarea
     id: logs
     attributes:
-      label: Sanitized logs or traceback
-      description: Remove tokens, credentials, personal data, prompts, and customer payloads.
-    validations:
-      required: false
+      label: Sanitized logs (remove secrets and personal data)
+      render: text

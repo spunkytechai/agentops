@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability reporting
+    url: https://github.com/spunkytechai/agentops/blob/main/SECURITY.md
+    about: Report security vulnerabilities privately; do not create a public issue.
+  - name: Contributor guide
+    url: https://github.com/spunkytechai/agentops/blob/main/CONTRIBUTING.md
+    about: Read setup, testing, and pull request guidance.
+  - name: Release roadmap
+    url: https://github.com/spunkytechai/agentops/blob/main/docs/RELEASE_ROADMAP.md
+    about: Review release gates and planned work.
