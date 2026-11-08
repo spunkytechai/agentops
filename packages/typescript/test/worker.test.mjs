@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { WorkerProcess, WorkerExecutionError } from "../dist/index.js";
 
 test("executes a versioned JSONL request and returns its result", async () => {
@@ -43,4 +47,19 @@ test("rejects protocol version and request ID mismatch", async () => {
     "process.stdin.resume();process.stdin.on('end',()=>process.stdout.write(JSON.stringify({protocol_version:99,request_id:'wrong',result:1})+'\\n'))"
   ]);
   await assert.rejects(worker.execute("tool", {}, { requestId: "expected" }), WorkerExecutionError);
+});
+
+test("timeout terminates worker descendants on POSIX", { skip: process.platform === "win32" }, async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "agentops-worker-tree-"));
+  const marker = path.join(directory, "orphan-was-alive");
+  const child = `setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, "alive"), 400)`;
+  const parent = `require("node:child_process").spawn(process.execPath, ["-e", ${JSON.stringify(child)}]); setTimeout(() => {}, 5000)`;
+  try {
+    const worker = new WorkerProcess(process.execPath, ["-e", parent], { timeoutMs: 100 });
+    await assert.rejects(worker.execute("tool", {}), WorkerExecutionError);
+    await new Promise(resolve => setTimeout(resolve, 600));
+    assert.equal(existsSync(marker), false, "worker descendant survived timeout");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
