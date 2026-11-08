@@ -41,6 +41,13 @@ jobs:
       - name: Build and test
         working-directory: packages/typescript
         run: npm test
+      - name: Verify published package includes license notices
+        working-directory: packages/typescript
+        run: |
+          cmp ../../LICENSE LICENSE
+          cmp ../../NOTICE NOTICE
+          npm pack --dry-run --json > npm-pack.json
+          node -e "const p = require('./npm-pack.json')[0]; const files = new Set(p.files.map(f => f.path)); for (const name of ['LICENSE', 'NOTICE']) { if (!files.has(name)) throw new Error(name + ' missing from npm package'); }"
 
   docker-integration:
     name: Docker worker integration
