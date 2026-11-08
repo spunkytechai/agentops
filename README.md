@@ -227,6 +227,12 @@ Evaluation reports can be persisted using `EvaluationRunStore` or `SqliteEvaluat
 
 Policy and approval are application-level controls, **not a sandbox**. The default agent registry is process-local; its optional SQLite store persists immutable definitions across restarts but does not verify agent artifacts or publisher identity. SQLite approval storage provides durable state and atomic single-use transitions, but does not authenticate approvers or protect the database file. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
 
+## Isolated worker execution
+
+Both SDKs expose a one-request-per-process WorkerProcess adapter using protocol version 1 JSONL. Each request carries a request ID, tool identifier, and JSON input; the worker must return exactly one correlated response containing a JSON result. Input and streamed output are byte-bounded, execution has a deadline, and the child is killed and reaped on timeout or protocol failure. Errors are sanitized and do not include worker stderr or payload contents.
+
+A subprocess is only a process boundary. It does not by itself restrict filesystem access, network egress, CPU, memory, privileges, or inherited credentials. Run workers under a hardened OS/container profile with least-privilege identity, read-only filesystems where possible, explicit network policy, CPU/memory/PID limits, and no ambient secrets. See docs/SECURITY_MODEL.md.
+
 ## Roadmap
 
 - [x] Public repository and project foundation
@@ -248,7 +254,7 @@ Policy and approval are application-level controls, **not a sandbox**. The defau
 - [ ] OpenTelemetry SDK integration, sampling, and automatic instrumentation
 - [x] Deterministic evaluation engine and baseline regression comparison
 - [x] Persistent evaluation run history and suite-specific baselines
-- [ ] Isolated worker adapters and deployment guides
+- [x] Versioned subprocess worker adapters, byte budgets, deadlines, and isolation guidance
 - [ ] Independent security review before stable release
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to participate and [SECURITY.md](SECURITY.md) for vulnerability reporting.

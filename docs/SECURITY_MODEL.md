@@ -63,6 +63,14 @@
 - Python `flush()` is synchronous; TypeScript `flush()` is asynchronous. Run flushing in a worker or controlled shutdown hook, not on a latency-sensitive execution path.
 - This release does not implement automatic instrumentation, metrics, logs, sampling, `traceparent` header parsing, or a complete OpenTelemetry SDK.
 
+## Subprocess worker boundary
+
+The Python and TypeScript WorkerProcess adapters launch a fresh child process per call and exchange a single versioned JSONL request/response. They reject requests exceeding the configured serialized input byte limit before process creation, stream and cap stdout bytes, enforce a wall-clock deadline, validate the protocol version and request correlation ID, and kill/reap a child that times out or exceeds the output budget. Stderr is discarded by default. These controls bound protocol payloads and execution time; they do not impose CPU, memory, process-count, filesystem, or network limits on the child.
+
+**A subprocess is not a secure sandbox.** A child normally inherits the host user's OS permissions and may inherit environment variables, open handles, and network access. For untrusted code, run the worker inside an OS/container isolation profile: non-root identity, dropped capabilities, read-only/minimal filesystem, isolated temporary directory, no host socket mounts, explicit egress-deny network policy, CPU/memory/PID limits, seccomp/AppArmor/SELinux or equivalent controls, and narrowly scoped credentials. Apply limits at the infrastructure boundary and test the actual deployment profile. Do not treat this SDK adapter as a substitute for those controls.
+
+The protocol is one request per process, not a pool or multi-tenant scheduler. JSON serialization excludes unsupported values; the host must validate schemas and authorize tool names before dispatch. Worker errors intentionally omit stderr and arbitrary exception text. A killed process cannot roll back side effects already committed to external systems.
+
 ## Limitations
 The initial SDK is not a process sandbox, secret manager, network firewall, prompt-injection detector, model-output validator, or distributed audit log. An allow-list does not replace least-privilege credentials or infrastructure isolation.
 

@@ -100,3 +100,20 @@ store.close()
 ```
 
 The SQLite store saves only reports and per-case scores, not evaluation inputs or model outputs. The in-memory implementation is available as `InMemoryEvaluationRunStore` for tests and local development.
+## Isolated subprocess worker
+
+```python
+import sys
+from agentops import WorkerProcess
+
+worker = WorkerProcess(
+    [sys.executable, "worker_entrypoint.py"],
+    timeout_seconds=5,
+    max_input_bytes=256_000,
+    max_output_bytes=256_000,
+)
+result = worker.execute("reports.summarize", {"report_id": "r-123"})
+```
+
+The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. The adapter launches a fresh process per call and kills/reaps it on deadline or output overflow. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
+
