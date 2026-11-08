@@ -22,7 +22,7 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 - Asynchronous TypeScript execution with configurable timeouts and abort signaling.
 - Structured start, success, failure, and timeout events.
 - W3C-compatible trace, span, and parent-span identifiers propagated through execution lifecycle events in both SDKs.
-- In-memory recorders that exclude prompts, arguments, results, and credentials.
+- In-memory recorders that exclude prompts, arguments, results, and credentials.\n- OTLP/HTTP JSON trace export in both SDKs, with bounded queues, batching, retries, and allowlisted span attributes.
 - Shared cross-language policy and action-fingerprint fixtures.
 - Automated unit tests and CI across supported Python versions, plus Node.js.
 
@@ -200,7 +200,7 @@ const child = TraceContext.create(parent);
 await executor.execute("reports.read", operation, "report-run-1", { traceContext: child });
 ```
 
-This is trace-context propagation and correlation metadata, not an OTLP exporter or a complete OpenTelemetry SDK. Events remain metadata-only; applications are responsible for redaction and secure export.
+Trace context can be exported as completed OTLP spans using `OtlpHttpSpanExporter` in either SDK. The exporter implements the OTLP/HTTP JSON trace request shape and accepts an injected synchronous HTTP transport; no OpenTelemetry SDK or networking dependency is required. Call `flush()` from a worker or shutdown hook because transport I/O is synchronous. The exporter only emits allowlisted operational attributes; it never serializes prompts, arguments, results, exception messages, or credentials. This is an OTLP exporter, not a complete OpenTelemetry SDK: automatic instrumentation, metrics, logs, sampling, and `traceparent` propagation remain out of scope.
 
 ## Security boundary
 
@@ -223,7 +223,7 @@ Policy and approval are application-level controls, **not a sandbox**. The defau
 - [x] Persistent agent registry with shared Python/TypeScript SQLite schema
 - [ ] Transactional server-database adapters for multi-host deployments
 - [ ] Distributed identity and approval scopes
-- [ ] OpenTelemetry exporters and evaluation engine
+- [x] Initial OTLP/HTTP JSON trace exporter for Python and TypeScript\n- [ ] OpenTelemetry SDK integration, sampling, and evaluation engine
 - [ ] Isolated worker adapters and deployment guides
 - [ ] Independent security review before stable release
 
