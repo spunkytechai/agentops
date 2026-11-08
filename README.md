@@ -201,7 +201,7 @@ const child = TraceContext.create(parent);
 await executor.execute("reports.read", operation, "report-run-1", { traceContext: child });
 ```
 
-Trace context can be exported as completed OTLP spans using `OtlpHttpSpanExporter` in either SDK. The exporter implements the OTLP/HTTP JSON trace request shape and accepts an injected synchronous HTTP transport; no OpenTelemetry SDK or networking dependency is required. Call `flush()` from a worker or shutdown hook because transport I/O is synchronous. The exporter only emits allowlisted operational attributes; it never serializes prompts, arguments, results, exception messages, or credentials. This is an OTLP exporter, not a complete OpenTelemetry SDK: automatic instrumentation, metrics, logs, sampling, and `traceparent` propagation remain out of scope.
+Trace context can be exported as completed OTLP spans using `OtlpHttpSpanExporter` in either SDK. The exporter implements the OTLP/HTTP JSON trace request shape and accepts an injected transport (synchronous in Python, asynchronous in TypeScript); no OpenTelemetry SDK or networking dependency is required. Call `flush()` from a worker or shutdown hook (await it in TypeScript). The exporter only emits allowlisted operational attributes; it never serializes prompts, arguments, results, exception messages, or credentials. This is an OTLP exporter, not a complete OpenTelemetry SDK: automatic instrumentation, metrics, logs, sampling, and `traceparent` propagation remain out of scope.
 
 ## Security boundary
 
