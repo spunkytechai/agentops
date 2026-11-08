@@ -134,9 +134,11 @@ worker = DockerWorker(
     memory_limit_bytes=512 * 1024 * 1024,
     cpu_limit=1.5,
     pids_limit=32,
+    max_concurrent_workers=4,
 )
 result = worker.execute("identity.echo", {"message": "hello"})
 ```
 
 The image must be preloaded locally. Each call starts a fresh non-root container with no network or host mounts, a read-only root filesystem, dropped capabilities, no-new-privileges, bounded CPU/memory/PIDs, and a restricted temporary filesystem. Protocol byte limits and deadlines remain active. The Docker daemon and host kernel remain trusted; this profile is not escape-proof.
 
+Each DockerWorker instance limits concurrent containers to four by default. Set `max_concurrent_workers` to tune the per-instance concurrency cap; calls waiting for a slot fail when the configured execution deadline expires. This is an in-process limit, not a cluster-wide quota.
