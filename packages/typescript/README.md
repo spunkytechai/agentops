@@ -53,7 +53,19 @@ await executor.execute("reports.read", fetchReport, "report-run-1", {
 
 When omitted, the executor creates trace and span identifiers. Export completed tool spans using an injected synchronous HTTP transport:
 
-\n```ts\nimport { OtlpHttpSpanExporter, ToolExecutor } from "@spunkytech/agentops";\n\nconst exporter = new OtlpHttpSpanExporter("http://localhost:4318", (url, headers, body) => {\n  // Send an HTTP POST with these headers and body using your preferred HTTP client.\n  // Throw on non-2xx responses so the exporter can retry the batch.\n});\nconst executor = new ToolExecutor(policy, exporter);\n// Call exporter.flush() from a worker or controlled shutdown hook.\n```\n\n## Example
+
+```ts
+import { OtlpHttpSpanExporter, ToolExecutor } from "@spunkytech/agentops";
+
+const exporter = new OtlpHttpSpanExporter("http://localhost:4318", (url, headers, body) => {
+  // Send an HTTP POST with these headers and body using your preferred HTTP client.
+  // Throw on non-2xx responses so the exporter can retry the batch.
+});
+const executor = new ToolExecutor(policy, exporter);
+// Call exporter.flush() from a worker or controlled shutdown hook.
+```
+
+## Example
 ```ts
 import { InMemoryRecorder, ToolExecutor, ToolPolicy } from "@spunkytech/agentops";
 
