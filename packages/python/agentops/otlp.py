@@ -70,7 +70,7 @@ class OtlpHttpSpanExporter:
             if event.trace_id is None or event.span_id is None:
                 return
             if (
-                event.event_type not in {"tool.started", "tool.succeeded", "tool.failed"}
+                event.event_type not in ("tool.started", "tool.succeeded", "tool.failed")
                 or not isinstance(event.timestamp, datetime)
                 or event.timestamp.tzinfo is None
                 or event.timestamp.utcoffset() is None
