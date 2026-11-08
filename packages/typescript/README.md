@@ -137,3 +137,25 @@ const result = await worker.execute("reports.summarize", { reportId: "r-123" });
 
 The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. A fresh process is launched per call; timed-out or over-budget children are killed. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
 
+## Docker-isolated worker
+
+Build the example image from the repository root:
+
+```bash
+docker build -f examples/Dockerfile.worker -t agentops-example-worker:local .
+```
+
+```ts
+import { DockerWorker } from "@spunkytech/agentops";
+
+const worker = new DockerWorker("agentops-example-worker:local", {
+  timeoutMs: 10_000,
+  memoryLimitBytes: 512 * 1024 * 1024,
+  cpuLimit: 1.5,
+  pidsLimit: 32,
+});
+const result = await worker.execute("identity.echo", { message: "hello" });
+```
+
+The image must be preloaded locally. Each call starts a fresh non-root container with no network or host mounts, a read-only root filesystem, dropped capabilities, no-new-privileges, bounded CPU/memory/PIDs, and a restricted temporary filesystem. Protocol byte limits and deadlines remain active. The Docker daemon and host kernel remain trusted; this profile is not escape-proof.
+
