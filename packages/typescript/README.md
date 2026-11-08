@@ -122,3 +122,18 @@ const baseline = store.getBaseline("answer-quality");
 ```
 
 The store persists report and per-case score metadata only. It does not persist dataset inputs or model outputs. `InMemoryEvaluationRunStore` is available for tests and local development.
+## Isolated subprocess worker
+
+```ts
+import { WorkerProcess } from "@spunkytech/agentops";
+
+const worker = new WorkerProcess("node", ["worker-entrypoint.mjs"], {
+  timeoutMs: 5_000,
+  maxInputBytes: 256_000,
+  maxOutputBytes: 256_000,
+});
+const result = await worker.execute("reports.summarize", { reportId: "r-123" });
+```
+
+The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. A fresh process is launched per call; timed-out or over-budget children are killed. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
+
