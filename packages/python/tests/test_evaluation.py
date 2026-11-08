@@ -1,9 +1,9 @@
-import unittest
+import unittest\nimport json\nfrom pathlib import Path
 
 from agentops import (
     EvaluationCase,
     EvaluationRegressionError,
-    EvaluationSuite,
+    EvaluationSuite,\n    EvaluationMetric,
     ExactMatchMetric,
     compare_evaluations,
 )
@@ -55,10 +55,25 @@ class EvaluationEngineTests(unittest.TestCase):
         with self.assertRaises(EvaluationRegressionError):
             compare_evaluations(a, b)
 
+    def test_shared_conformance_fixture_matches_python_results(self):
+        fixture_path = Path(__file__).resolve().parents[3] / "conformance" / "fixtures" / "evaluations.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        cases = tuple(EvaluationCase(
+            item["id"], item["input"], item["expected"], weight=item["weight"]
+        ) for item in fixture["cases"])
+        report = EvaluationSuite(
+            fixture["suite"], cases, pass_threshold=fixture["pass_threshold"]
+        ).run(lambda value: next(item["actual"] for item in fixture["cases"] if item["input"] == value))
+        self.assertEqual(report.total_cases, fixture["expected"]["total_cases"])
+        self.assertEqual(report.passed_cases, fixture["expected"]["passed_cases"])
+        self.assertEqual(report.failed_cases, fixture["expected"]["failed_cases"])
+        self.assertAlmostEqual(report.weighted_score, fixture["expected"]["weighted_score"])
+        self.assertAlmostEqual(report.pass_rate, fixture["expected"]["pass_rate"])
+
     def test_invalid_case_weights_and_metric_scores_are_rejected(self):
         with self.assertRaises(ValueError):
             EvaluationCase("bad", 1, 1, weight=0)
-        suite = EvaluationSuite("bad-metric", (EvaluationCase("a", 1, 1),), metric=lambda *_: 2)
+        suite = EvaluationSuite("bad-metric", (EvaluationCase("a", 1, 1),), metric=type("InvalidMetric", (), {"name": "invalid", "score": lambda self, *_: 2})())
         with self.assertRaises(ValueError):
             suite.run(lambda x: x)
 
