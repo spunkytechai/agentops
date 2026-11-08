@@ -115,7 +115,7 @@ worker = WorkerProcess(
 result = worker.execute("reports.summarize", {"report_id": "r-123"})
 ```
 
-The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. The adapter launches a fresh process per call and kills/reaps it on deadline or output overflow. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
+The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. The adapter launches a fresh process group per call on POSIX and terminates the group on completion, deadline, or output overflow. On Windows it attempts recursive process-tree termination with `taskkill /T /F`, then reaps the direct child. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
 
 ## Docker-isolated worker
 

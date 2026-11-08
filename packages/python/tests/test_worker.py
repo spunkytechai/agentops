@@ -1,4 +1,8 @@
 import json
+import os
+import tempfile
+import time
+from pathlib import Path
 import sys
 import unittest
 
@@ -35,6 +39,26 @@ class WorkerProcessTests(unittest.TestCase):
         with self.assertRaises(WorkerExecutionError):
             worker.execute("tool", {}, request_id="expected")
 
+    @unittest.skipUnless(os.name == "posix", "process-group cleanup is POSIX-specific")
+    def test_timeout_terminates_worker_descendants(self):
+        with tempfile.TemporaryDirectory() as directory:
+            marker = str(Path(directory) / "orphan-was-alive")
+            child = (
+                "import time,pathlib; time.sleep(0.4); "
+                + "pathlib.Path(" + repr(marker) + ").write_text('alive')"
+            )
+            parent = (
+                "import subprocess,sys,time; "
+                + "subprocess.Popen([sys.executable, '-c', " + repr(child) + "]); "
+                + "time.sleep(5)"
+            )
+            worker = WorkerProcess(
+                [sys.executable, "-c", parent], timeout_seconds=0.1
+            )
+            with self.assertRaises(WorkerExecutionError):
+                worker.execute("tool", {})
+            time.sleep(0.6)
+            self.assertFalse(Path(marker).exists(), "worker descendant survived timeout")
 
 if __name__ == "__main__":
     unittest.main()

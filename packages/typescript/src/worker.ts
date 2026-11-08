@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
 function assertWellFormedUnicode(value: string, path: string): void {
@@ -65,6 +65,16 @@ function assertJsonValue(value: unknown, path: string, ancestors = new Set<objec
   }
 }
 
+function killProcessTree(child: ChildProcess): void {
+  if (!child.pid) return;
+  try {
+    if (process.platform === "win32") child.kill("SIGKILL");
+    else process.kill(-child.pid, "SIGKILL");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ESRCH") child.kill("SIGKILL");
+  }
+}
+
 export class WorkerExecutionError extends Error {
   constructor(message: string) {
     super(message);
@@ -126,6 +136,7 @@ export class WorkerProcess {
       const child = spawn(this.executable, [...this.args], {
         stdio: ["pipe", "pipe", "ignore"],
         windowsHide: true,
+        detached: process.platform !== "win32",
       });
       const chunks: Buffer[] = [];
       let outputBytes = 0;
@@ -134,7 +145,7 @@ export class WorkerProcess {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        child.kill("SIGKILL");
+        killProcessTree(child);
         reject(error);
       };
       const timer = setTimeout(() => finishError(new WorkerExecutionError("worker execution deadline exceeded")), this.timeoutMs);
@@ -151,6 +162,7 @@ export class WorkerProcess {
       child.once("close", (code) => {
         if (settled) return;
         settled = true;
+        killProcessTree(child);
         clearTimeout(timer);
         if (code !== 0) {
           reject(new WorkerExecutionError("worker exited unsuccessfully"));
