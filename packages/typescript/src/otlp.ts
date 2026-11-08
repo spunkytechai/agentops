@@ -192,7 +192,8 @@ export class OtlpHttpSpanExporter implements EventRecorder {
   }
 
   private validTimestamp(value: unknown): boolean {
-    return typeof value === "string" && value.length <= 64 && Number.isFinite(Date.parse(value));
+    return typeof value === "string" && value.length <= 64 &&
+      /(?:Z|[+-]\\d{2}:\\d{2})$/i.test(value) && Number.isFinite(Date.parse(value));
   }
 
   private validDuration(value: unknown): boolean {
