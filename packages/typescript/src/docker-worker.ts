@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { WorkerExecutionError, WorkerProcess, type WorkerProcessOptions } from "./worker.js";
 
 export interface DockerWorkerOptions extends WorkerProcessOptions {
@@ -101,10 +102,14 @@ export class DockerWorker {
     ];
   }
 
-  private async acquireSlot(): Promise<void> {
+  private async acquireSlot(deadline: number): Promise<void> {
     if (this.activeWorkers < this.maxConcurrentWorkers) {
       this.activeWorkers += 1;
       return;
+    }
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) {
+      throw new WorkerExecutionError("worker execution deadline exceeded while waiting for a concurrency slot");
     }
     await new Promise<void>((resolve, reject) => {
       const waiter = {
@@ -115,8 +120,8 @@ export class DockerWorker {
         timer: setTimeout(() => {
           const index = this.waiters.indexOf(waiter);
           if (index >= 0) this.waiters.splice(index, 1);
-          reject(new WorkerExecutionError("worker concurrency wait deadline exceeded"));
-        }, this.timeoutMs),
+          reject(new WorkerExecutionError("worker execution deadline exceeded while waiting for a concurrency slot"));
+        }, remaining),
       };
       this.waiters.push(waiter);
     });
@@ -129,10 +134,17 @@ export class DockerWorker {
   }
 
   async execute(toolName: string, input: unknown, options: { readonly requestId?: string } = {}): Promise<unknown> {
-    await this.acquireSlot();
+    const deadline = performance.now() + this.timeoutMs;
+    await this.acquireSlot(deadline);
     try {
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) {
+        throw new WorkerExecutionError("worker execution deadline exceeded while waiting for a concurrency slot");
+      }
       const name = `agentops-worker-${randomUUID()}`;
-      const worker = new WorkerProcess(this.dockerExecutable, this.runArgs(name), this.workerOptions);
+      const worker = new WorkerProcess(this.dockerExecutable, this.runArgs(name), {
+        ...this.workerOptions, timeoutMs: remaining,
+      });
       try {
         return await worker.execute(toolName, input, options);
       } finally {
