@@ -30,7 +30,7 @@ class OtlpHttpSpanExporter:
         max_retries: int = 2,
     ) -> None:
         parsed = urlsplit(endpoint)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.query or parsed.fragment:
             raise ValueError("endpoint must be an absolute HTTP or HTTPS URL")
         if any(isinstance(v, bool) or not isinstance(v, int) or v <= 0
                for v in (max_queue_size, max_batch_size)):
@@ -49,7 +49,7 @@ class OtlpHttpSpanExporter:
     def record(self, event: RunEvent) -> None:
         if event.trace_id is None or event.span_id is None:
             return
-        key = (event.run_id, event.span_id)
+        key = (event.trace_id, event.span_id)
         if event.event_type == "tool.started":
             if len(self._pending) + len(self._queue) >= self._max_queue_size:
                 self.dropped_spans += 1
@@ -112,8 +112,7 @@ class OtlpHttpSpanExporter:
             batch = [self._queue.popleft() for _ in range(min(len(self._queue), self._max_batch_size))]
             body = json.dumps({
                 "resourceSpans": [{
-                    "resource": {"attributes": [
-                    ]},
+                    "resource": {"attributes": []},
                     "scopeSpans": [{
                         "scope": {"name": "agentops", "version": "0.1.0"},
                         "spans": batch,
