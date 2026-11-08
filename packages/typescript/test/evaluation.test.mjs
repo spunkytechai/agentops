@@ -46,7 +46,9 @@ test("suite gives each operation a fresh immutable JSON input snapshot", async (
   ]);
   const seen = [];
   const report = await suite.run(async (value) => {
-    assert.throws(() => { value.nested.value = 2; }, TypeError);
+    let mutationBlocked = false;
+    try { value.nested.value = 2; } catch (error) { mutationBlocked = error instanceof TypeError; }
+    assert.equal(mutationBlocked, true);
     seen.push(value.nested.value);
     return 1;
   });
