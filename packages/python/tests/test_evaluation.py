@@ -43,6 +43,15 @@ class EvaluationEngineTests(unittest.TestCase):
         self.assertEqual(metric.score(1, 1.0), 1.0)
         self.assertEqual(metric.score(True, 1), 0.0)
 
+    async def test_async_suite_runs_awaitable_operations(self):
+        import asyncio
+        suite = EvaluationSuite("async", (EvaluationCase("one", 2, 4),))
+        async def operation(value):
+            await asyncio.sleep(0)
+            return value * 2
+        report = await suite.run_async(operation)
+        self.assertEqual(report.weighted_score, 1.0)
+
     def test_case_exceptions_are_recorded_without_error_messages(self):
         suite = EvaluationSuite("errors", (EvaluationCase("boom", "input", "expected"),))
         report = suite.run(lambda _: (_ for _ in ()).throw(RuntimeError("contains secret")))
