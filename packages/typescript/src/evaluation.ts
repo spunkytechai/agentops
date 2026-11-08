@@ -4,11 +4,14 @@ function canonicalJson(value: unknown): string {
   const normalize = (item: unknown): unknown => {
     if (item === null || typeof item === "string" || typeof item === "boolean") return item;
     if (typeof item === "number") {
-      if (!Number.isFinite(item)) throw new TypeError("evaluation values must be finite JSON-compatible data");
+      if (!Number.isFinite(item) || (Number.isInteger(item) && !Number.isSafeInteger(item))) throw new TypeError("evaluation values must be finite JSON-compatible data");
       return item;
     }
     if (Array.isArray(item)) return item.map(normalize);
     if (typeof item === "object") {
+      if (Object.getPrototypeOf(item) !== Object.prototype && Object.getPrototypeOf(item) !== null) {
+        throw new TypeError("evaluation values must be finite JSON-compatible data");
+      }
       const record = item as Record<string, unknown>;
       const result: Record<string, unknown> = {};
       for (const key of Object.keys(record).sort()) {
@@ -61,6 +64,25 @@ export class ExactMatchMetric implements EvaluationMetric {
   readonly name = "exact_match";
   score(expected: unknown, actual: unknown): number {
     return canonicalJson(expected) === canonicalJson(actual) ? 1 : 0;
+  }
+}
+
+export class NumericToleranceMetric implements EvaluationMetric {
+  readonly name = "numeric_tolerance";
+  readonly absoluteTolerance: number;
+
+  constructor(absoluteTolerance: number) {
+    if (!Number.isFinite(absoluteTolerance) || absoluteTolerance < 0) {
+      throw new TypeError("absoluteTolerance must be a non-negative finite number");
+    }
+    this.absoluteTolerance = absoluteTolerance;
+    Object.freeze(this);
+  }
+
+  score(expected: unknown, actual: unknown): number {
+    if (typeof expected !== "number" || typeof actual !== "number" ||
+        !Number.isFinite(expected) || !Number.isFinite(actual)) return 0;
+    return Math.abs(expected - actual) <= this.absoluteTolerance ? 1 : 0;
   }
 }
 
