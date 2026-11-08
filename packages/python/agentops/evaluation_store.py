@@ -55,9 +55,13 @@ def _payload(report: EvaluationReport) -> dict[str, object]:
 
 def _encode(report: EvaluationReport) -> str:
     try:
-        return json.dumps(_payload(report), separators=(",", ":"), allow_nan=False)
+        value = json.dumps(_payload(report), separators=(",", ":"), allow_nan=False)
+        _decode(value)
+        return value
     except (TypeError, ValueError) as exc:
-        raise EvaluationRunStoreError("report must contain finite JSON-compatible values") from exc
+        if isinstance(exc, EvaluationRunStoreError):
+            raise
+        raise EvaluationRunStoreError("report must contain valid finite evaluation data") from exc
 
 
 def _decode(value: str) -> EvaluationReport:
@@ -65,9 +69,11 @@ def _decode(value: str) -> EvaluationReport:
         data = json.loads(value)
         if (
             not isinstance(data["suite_name"], str)
-            or any(isinstance(data[key], bool) or not isinstance(data[key], int) for key in (
-                "total_cases", "passed_cases", "failed_cases"
-            ))
+            or not data["suite_name"].strip()
+            or any(
+                isinstance(data[key], bool) or not isinstance(data[key], int)
+                for key in ("total_cases", "passed_cases", "failed_cases")
+            )
             or isinstance(data["weighted_score"], bool)
             or not isinstance(data["weighted_score"], (int, float))
             or not math.isfinite(data["weighted_score"])
@@ -77,10 +83,24 @@ def _decode(value: str) -> EvaluationReport:
             or not isinstance(data["case_results"], list)
         ):
             raise ValueError("invalid report fields")
-        results = tuple(EvaluationCaseResult(
-            case_id=item["case_id"], score=float(item["score"]),
-            passed=item["passed"], error_type=item.get("error_type"),
-        ) for item in data["case_results"])
+        results_list = []
+        for item in data["case_results"]:
+            if (
+                not isinstance(item, dict)
+                or not isinstance(item.get("case_id"), str)
+                or isinstance(item.get("score"), bool)
+                or not isinstance(item.get("score"), (int, float))
+                or not math.isfinite(item["score"])
+                or not 0 <= item["score"] <= 1
+                or not isinstance(item.get("passed"), bool)
+                or (item.get("error_type") is not None and not isinstance(item.get("error_type"), str))
+            ):
+                raise ValueError("invalid case result")
+            results_list.append(EvaluationCaseResult(
+                case_id=item["case_id"], score=float(item["score"]),
+                passed=item["passed"], error_type=item.get("error_type"),
+            ))
+        results = tuple(results_list)
         report = EvaluationReport(
             suite_name=data["suite_name"], total_cases=data["total_cases"],
             passed_cases=data["passed_cases"], failed_cases=data["failed_cases"],
@@ -88,16 +108,20 @@ def _decode(value: str) -> EvaluationReport:
             case_results=results,
         )
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        if isinstance(exc, EvaluationRunStoreError):
+            raise
         raise EvaluationRunStoreError("stored evaluation report is invalid") from exc
-    if (report.total_cases != len(results) or report.passed_cases + report.failed_cases != report.total_cases
-            or not 0 <= report.weighted_score <= 1 or not 0 <= report.pass_rate <= 1
-            or any(not isinstance(item.case_id, str) or not isinstance(item.passed, bool)
-                   or not 0 <= item.score <= 1
-                   or (item.error_type is not None and not isinstance(item.error_type, str))
-                   for item in results)):
-        raise EvaluationRunStoreError("stored evaluation report values are invalid")
-    if report.total_cases != len(results) or report.passed_cases + report.failed_cases != report.total_cases:
-        raise EvaluationRunStoreError("stored evaluation report counts are inconsistent")
+    if (
+        report.total_cases <= 0
+        or report.total_cases != len(results)
+        or report.passed_cases + report.failed_cases != report.total_cases
+        or report.passed_cases != sum(item.passed for item in results)
+        or report.failed_cases != report.total_cases - report.passed_cases
+        or not 0 <= report.weighted_score <= 1
+        or not 0 <= report.pass_rate <= 1
+        or not math.isclose(report.pass_rate, report.passed_cases / report.total_cases, rel_tol=0, abs_tol=1e-12)
+    ):
+        raise EvaluationRunStoreError("stored evaluation report counts or scores are inconsistent")
     return report
 
 
