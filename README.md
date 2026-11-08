@@ -309,6 +309,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) to participate and [SECURITY.md](SECURITY
 
 The AgentOps SDKs and core runtime remain open source under Apache-2.0. Commercial opportunities are planned around implementation, hosted operations, enterprise support, and training; hosted and paid features are not yet available. See [Commercialization Strategy](docs/COMMERCIALIZATION.md) and the [Product and Release Roadmap](docs/RELEASE_ROADMAP.md).
 
+## Sponsorship
+
+AgentOps is open source under Apache-2.0. Sponsorship helps fund SDK maintenance, security work, cross-language testing, documentation, and releases.
+
+- [Become a GitHub Sponsor](https://github.com/sponsors/spunkytechai)
+- [Corporate sponsorship and partnership information](docs/SPONSORSHIP.md)
+
+GitHub Sponsors onboarding and approval are required before the profile can accept payments. Corporate sponsorship terms are agreed separately. Sponsorship does not purchase roadmap control or imply product endorsement.
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
