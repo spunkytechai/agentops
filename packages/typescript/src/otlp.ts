@@ -34,6 +34,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
   private readonly maxRetries: number;
   private readonly pending = new Map<string, RunEvent>();
   private readonly queue: OtlpSpan[] = [];
+  private flushTail: Promise<void> = Promise.resolve();
   droppedSpans = 0;
 
   constructor(endpoint: string, transport: OtlpHttpTransport, options: OtlpHttpSpanExporterOptions = {}) {
@@ -56,7 +57,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     if (!Number.isSafeInteger(maxRetries) || maxRetries < 0) {
       throw new TypeError("maxRetries must be a non-negative integer");
     }
-    this.endpoint = endpoint.replace(/\/+$/, "") + "/v1/traces";
+    this.endpoint = endpoint.replace(/\\/+$/, "") + "/v1/traces";
     this.transport = transport;
     this.maxQueueSize = maxQueueSize;
     this.maxBatchSize = Math.min(maxBatchSize, maxQueueSize);
@@ -84,7 +85,14 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     this.queue.push(this.toSpan(started, event));
   }
 
-  async flush(): Promise<number> {
+  flush(): Promise<number> {
+    const run = () => this.flushQueued();
+    const result = this.flushTail.then(run, run);
+    this.flushTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private async flushQueued(): Promise<number> {
     let exported = 0;
     while (this.queue.length > 0) {
       const batch = this.queue.splice(0, this.maxBatchSize);
@@ -118,7 +126,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
   }
 
   private key(traceId: string, spanId: string): string {
-    return `${traceId}\u0000${spanId}`;
+    return `${traceId}\\u0000${spanId}`;
   }
 
   private toSpan(started: RunEvent, ended: RunEvent): OtlpSpan {
