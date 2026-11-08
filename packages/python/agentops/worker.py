@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import queue
+import signal
 import subprocess
 import threading
 import time
@@ -65,21 +67,33 @@ class WorkerProcess:
             process = subprocess.Popen(
                 self.command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL, bufsize=0,
+                start_new_session=(os.name == "posix"),
+                **({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {}),
             )
         except OSError as exc:
             raise WorkerExecutionError("worker could not be started") from exc
 
         chunks: queue.Queue[bytes | None] = queue.Queue(maxsize=1)
+        stop_reader = threading.Event()
+
+        def enqueue_chunk(chunk: bytes | None) -> None:
+            while not stop_reader.is_set():
+                try:
+                    chunks.put(chunk, timeout=0.05)
+                    return
+                except queue.Full:
+                    continue
+
         def read_stdout() -> None:
             try:
                 assert process.stdout is not None
-                while True:
+                while not stop_reader.is_set():
                     chunk = process.stdout.read(4096)
                     if not chunk:
                         break
-                    chunks.put(chunk)
+                    enqueue_chunk(chunk)
             finally:
-                chunks.put(None)
+                enqueue_chunk(None)
 
         def write_stdin() -> None:
             try:
@@ -130,7 +144,24 @@ class WorkerProcess:
         except (BrokenPipeError, OSError) as exc:
             raise WorkerExecutionError("worker communication failed") from exc
         finally:
-            if process.poll() is None:
+            stop_reader.set()
+            if os.name == "posix":
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            elif os.name == "nt":
+                try:
+                    subprocess.run(
+                        ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, timeout=5, check=False,
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+                if process.poll() is None:
+                    process.kill()
+            elif process.poll() is None:
                 process.kill()
             process.wait()
             reader.join(timeout=1)
