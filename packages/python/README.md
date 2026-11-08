@@ -66,3 +66,22 @@ Use `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persi
 Use `ApprovalManager(store=SqliteApprovalStore("agentops.sqlite3"))` to persist approval requests across restarts. Close the store during application shutdown. Use a shared SQLite file only on storage with reliable SQLite locking.
 
 The async executor cancels the coroutine when its timeout expires. Cancellation is cooperative; integrations must propagate cancellation and external side effects may already have occurred. The default recorder stores metadata only; tool arguments and results are excluded.
+
+## Evaluation
+
+```python
+from agentops import EvaluationCase, EvaluationSuite, ExactMatchMetric, NumericToleranceMetric, compare_evaluations
+
+suite = EvaluationSuite("answer-quality", [
+    EvaluationCase("greeting", {"prompt": "hello"}, "Hello!", weight=2),
+    EvaluationCase("temperature", {"prompt": "temperature"}, 21.0),
+], metric=ExactMatchMetric())
+report = suite.run(lambda item: "Hello!" if item["prompt"] == "hello" else 21.0)
+print(report.weighted_score, report.pass_rate)
+
+# For numeric outputs, use NumericToleranceMetric(absolute_tolerance=0.5).
+# Compare a later report with a stored baseline:
+# regression = compare_evaluations(baseline, report, max_score_drop=0.02)
+```
+
+Use `await suite.run_async(async_operation)` for sequential asynchronous operations. The engine does not call a model provider or persist datasets/reports.
