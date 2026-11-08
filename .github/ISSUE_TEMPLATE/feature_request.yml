@@ -1,24 +1,20 @@
 name: Feature request
-description: Propose a capability or improvement.
+description: Propose a focused improvement to AgentOps
 title: "[Feature]: "
-labels: ["enhancement", "needs-triage"]
+labels: ["enhancement", "triage"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Focus on the problem and expected outcome. AgentOps prioritizes provider-neutral interfaces, explicit security boundaries, and cross-SDK consistency.
   - type: textarea
     id: problem
     attributes:
       label: Problem to solve
-      description: What limitation or user need does this address?
+      description: What are you trying to accomplish, and what is difficult today?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
       label: Proposed behavior
-      description: Describe the API or workflow you have in mind.
+      description: Describe the smallest useful behavior from a user's perspective.
     validations:
       required: true
   - type: textarea
@@ -28,25 +24,16 @@ body:
     validations:
       required: false
   - type: dropdown
-    id: scope
+    id: area
     attributes:
-      label: Scope
-      options:
-        - Python SDK
-        - TypeScript SDK
-        - Cross-SDK conformance
-        - Security / policy
-        - Evaluation / observability
-        - Documentation
-        - Other
+      label: Affected area
+      multiple: true
+      options: [Python SDK, TypeScript SDK, Cross-language conformance, Worker execution, Security and governance, Documentation, Developer experience]
     validations:
       required: true
-  - type: checkboxes
-    id: safeguards
+  - type: textarea
+    id: compatibility
     attributes:
-      label: Design considerations
-      options:
-        - label: I have considered privacy and sensitive-data handling.
-        - label: I have considered failure modes and backwards compatibility.
-        - label: I can help implement or validate this proposal.
-          required: false
+      label: Compatibility and security considerations
+    validations:
+      required: false
