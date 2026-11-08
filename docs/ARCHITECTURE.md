@@ -82,6 +82,14 @@ WorkerProcess starts a fresh child for each invocation and communicates over std
 
 Each invocation starts a new process; this is not a persistent worker pool. The protocol carries JSON values only. Hosts remain responsible for validating tool schemas and mapping trusted tool identifiers to worker-side operations. Do not put credentials in worker arguments or telemetry; use a narrowly scoped secret-delivery mechanism supplied by the deployment environment.
 
+## Docker worker lifecycle
+
+`DockerWorker` in each SDK composes the Phase 13 `WorkerProcess` protocol adapter with the Docker CLI. Each invocation generates a unique container name, starts a fresh image with a fixed hardening profile, streams the existing JSONL request/response over stdin/stdout, then issues `docker rm --force` in a bounded cleanup step. Docker's `--rm` also removes containers on normal exit. The adapter does not mount host paths, forward host environment variables, or pull images during invocation; images must be preloaded locally.
+
+The fixed profile sets `--network=none`, `--read-only`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`, numeric non-root `--user=65532:65532`, memory and equal memory-swap limits, CPU quota, PID limit, and a size-limited `/tmp` tmpfs with `noexec,nosuid,nodev`. Callers may lower or raise the numeric resource budgets, but cannot override the security flags through this API. Protocol byte limits and wall-clock deadlines remain enforced by `WorkerProcess`.
+
+Each adapter instance also maintains a bounded in-process semaphore (default four concurrent containers). Calls waiting for a slot are limited by the same configured deadline. This is a per-process cap, not a distributed quota; enforce aggregate limits at the host or orchestration layer. This is one container per invocation, not a persistent pool or scheduler. Cleanup is best-effort if the Docker daemon is unavailable or unresponsive; production hosts should monitor orphan containers and apply daemon-level quotas. The Docker daemon and host kernel remain trusted. For stronger hostile-code isolation, use a sandbox runtime such as gVisor or Kata Containers, or a microVM boundary.
+
 ## Evaluation run persistence
 
 `EvaluationRunStore` persists evaluation reports independently of datasets and model-provider execution. Each run has a unique caller-supplied or generated ID, suite name, epoch-millisecond creation timestamp, and report. `InMemoryEvaluationRunStore` is process-local; `SqliteEvaluationRunStore` persists run history and one replaceable baseline pointer per suite. Baseline assignment is an atomic insert-select/upsert constrained by both run ID and suite name. Both SDKs use the same `agentops_evaluation_runs` and `agentops_evaluation_baselines` schema and a shared snake_case report JSON payload. The store does not retain inputs, expected outputs, actual model outputs, or prompts.

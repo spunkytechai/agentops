@@ -117,3 +117,28 @@ result = worker.execute("reports.summarize", {"report_id": "r-123"})
 
 The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. The adapter launches a fresh process per call and kills/reaps it on deadline or output overflow. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
 
+## Docker-isolated worker
+
+Build the example image from the repository root:
+
+```bash
+docker build -f examples/Dockerfile.worker -t agentops-example-worker:local .
+```
+
+```python
+from agentops import DockerWorker
+
+worker = DockerWorker(
+    "agentops-example-worker:local",
+    timeout_seconds=10,
+    memory_limit_bytes=512 * 1024 * 1024,
+    cpu_limit=1.5,
+    pids_limit=32,
+    max_concurrent_workers=4,
+)
+result = worker.execute("identity.echo", {"message": "hello"})
+```
+
+The image must be preloaded locally. Each call starts a fresh non-root container with no network or host mounts, a read-only root filesystem, dropped capabilities, no-new-privileges, bounded CPU/memory/PIDs, and a restricted temporary filesystem. Protocol byte limits and deadlines remain active. The Docker daemon and host kernel remain trusted; this profile is not escape-proof.
+
+Each DockerWorker instance limits concurrent containers to four by default. Set `max_concurrent_workers` to tune the per-instance concurrency cap; calls waiting for a slot fail when the configured execution deadline expires. This is an in-process limit, not a cluster-wide quota.

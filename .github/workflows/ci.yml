@@ -41,3 +41,32 @@ jobs:
       - name: Build and test
         working-directory: packages/typescript
         run: npm test
+
+  docker-integration:
+    name: Docker worker integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Python package
+        run: python -m pip install -e .
+      - name: Install TypeScript dependencies
+        working-directory: packages/typescript
+        run: npm install
+      - name: Build example worker image
+        run: docker build -f examples/Dockerfile.worker -t agentops-example-worker:ci .
+      - name: Run Python tests against real container
+        env:
+          AGENTOPS_DOCKER_INTEGRATION: "1"
+        run: python -m unittest discover -s packages/python/tests -v
+      - name: Run TypeScript tests against real container
+        working-directory: packages/typescript
+        env:
+          AGENTOPS_DOCKER_INTEGRATION: "1"
+        run: npm test
