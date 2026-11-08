@@ -23,6 +23,28 @@ This document describes a proposed business model and validation plan. It does n
 
 Initial customer discovery should focus on teams already running agents with consequential tool access. Do not assume broad demand from GitHub stars or downloads alone.
 
+## Competitive pricing snapshot
+
+Public vendor pricing pages reviewed on 8 November 2026 show a consistent pattern: a free developer entry point, a low-cost paid tier for production teams, usage or retention-based expansion, and custom enterprise pricing.
+
+| Product | Public entry point | Paid entry point | Monetization emphasis |
+|---|---:|---:|---|
+| [Langfuse](https://langfuse.com/pricing) | Free Hobby | Core USD 29/month; Pro USD 199/month; Enterprise USD 2,499/month | Billable trace/observation units, retention, support and enterprise controls |
+| [LangSmith](https://www.langchain.com/pricing) | Free Developer | Plus USD 39/seat/month; Enterprise custom | Seats plus traces, compute/storage usage, deployment and enterprise options |
+| [Arize AX](https://arize.com/pricing) | Free AX | Pro USD 50/month; Enterprise custom | Trace volume, ingestion, retention, security and support |
+| [Portkey](https://portkey.ai/pricing) | Free, 10k recorded logs/month | Production USD 49/month, with usage overage | Recorded request/log volume, gateway controls and production support |
+| [Braintrust](https://www.braintrust.dev/pricing) | Free Starter | Pro USD 249/month; Enterprise custom | Processed data, evaluation scores, retention, RBAC and support |
+
+These are vendor-listed prices and allowances, not like-for-like feature comparisons. Pricing, usage definitions, discounts, and plan contents can change; re-check the official pages before making a commercial decision.
+
+### What this means for AgentOps
+
+1. **Do not compete as another generic tracing dashboard.** The SDK already has metadata-only event recording, OTLP export, and evaluation primitives, but it does not yet provide a hosted observability UI or a full OpenTelemetry SDK.
+2. **Differentiate around runtime governance and execution boundaries:** deny-by-default tool policy, principal- and action-bound one-time approvals, cross-language conformance, and hardened subprocess/Docker worker adapters. Communicate their limits honestly; they are not a complete identity platform or escape-proof sandbox.
+3. **Keep self-hosted SDK use free.** The market includes open-source/self-hosted alternatives, so monetization should be tied to genuinely delivered managed operations, team administration, support, and integration—not a paywall around the core runtime.
+4. **Start with services, not a premature SaaS build.** Implementation and readiness engagements can earn revenue before the hosted control plane exists and reveal which repeatable features customers will pay for.
+5. **Treat the suggested USD 19–499 monthly bands as experiments only.** They sit around observed developer/team price points, but AgentOps must validate its own willingness-to-pay and infrastructure economics with design partners before publishing a tariff.
+
 ## Revenue streams
 
 ### 1. Implementation and readiness services — first revenue priority
