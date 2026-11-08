@@ -37,6 +37,22 @@ test("exact match uses JSON semantics for numbers and booleans", () => {
   assert.equal(metric.score(true, 1), 0);
 });
 
+test("suite gives each operation a fresh immutable JSON input snapshot", async () => {
+  const input = { nested: { value: 1 } };
+  const suite = new EvaluationSuite("immutable-input", [
+    new EvaluationCase("one", input, 1),
+    new EvaluationCase("two", input, 1),
+  ]);
+  const seen = [];
+  const report = await suite.run(async (value) => {
+    assert.throws(() => { value.nested.value = 2; }, TypeError);
+    seen.push(value.nested.value);
+    return 1;
+  });
+  assert.deepEqual(seen, [1, 1]);
+  assert.equal(report.weightedScore, 1);
+});
+
 test("case exceptions are recorded without exposing error messages", async () => {
   const suite = new EvaluationSuite("errors", [new EvaluationCase("boom", "input", "expected")]);
   const report = await suite.run(async () => { throw new Error("contains secret"); });
