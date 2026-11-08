@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import type { EventRecorder, RunEvent } from "./observability.js";
 
 export type OtlpHttpTransport = (
@@ -10,6 +11,7 @@ export interface OtlpHttpSpanExporterOptions {
   readonly maxQueueSize?: number;
   readonly maxBatchSize?: number;
   readonly maxRetries?: number;
+  readonly maxAttributeBytes?: number;
 }
 
 type OtlpAttributeValue = string | number | boolean;
@@ -32,6 +34,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
   private readonly maxQueueSize: number;
   private readonly maxBatchSize: number;
   private readonly maxRetries: number;
+  private readonly maxAttributeBytes: number;
   private readonly pending = new Map<string, RunEvent>();
   private readonly queue: OtlpSpan[] = [];
   private flushTail: Promise<void> = Promise.resolve();
@@ -47,9 +50,13 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.search || parsed.hash) {
       throw new TypeError("endpoint must be an absolute HTTP or HTTPS URL");
     }
+    if (parsed.username || parsed.password) {
+      throw new TypeError("endpoint must not contain embedded credentials");
+    }
     const maxQueueSize = options.maxQueueSize ?? 2048;
     const maxBatchSize = options.maxBatchSize ?? 512;
     const maxRetries = options.maxRetries ?? 2;
+    const maxAttributeBytes = options.maxAttributeBytes ?? 256;
     if (!Number.isSafeInteger(maxQueueSize) || maxQueueSize <= 0 ||
         !Number.isSafeInteger(maxBatchSize) || maxBatchSize <= 0) {
       throw new TypeError("queue and batch sizes must be positive integers");
@@ -57,17 +64,25 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     if (!Number.isSafeInteger(maxRetries) || maxRetries < 0) {
       throw new TypeError("maxRetries must be a non-negative integer");
     }
+    if (!Number.isSafeInteger(maxAttributeBytes) || maxAttributeBytes <= 0) {
+      throw new TypeError("maxAttributeBytes must be a positive integer");
+    }
     this.endpoint = endpoint.replace(/\/+$/, "") + "/v1/traces";
     this.transport = transport;
     this.maxQueueSize = maxQueueSize;
     this.maxBatchSize = Math.min(maxBatchSize, maxQueueSize);
     this.maxRetries = maxRetries;
+    this.maxAttributeBytes = maxAttributeBytes;
   }
 
   record(event: RunEvent): void {
     if (event.traceId === undefined || event.spanId === undefined) return;
     const key = this.key(event.traceId, event.spanId);
     if (event.type === "tool.started") {
+      if (!this.metadataWithinLimit(event.runId) || !this.metadataWithinLimit(event.toolName)) {
+        this.droppedSpans += 1;
+        return;
+      }
       if (this.pending.size + this.queue.length >= this.maxQueueSize) {
         this.droppedSpans += 1;
         return;
@@ -78,6 +93,12 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     const started = this.pending.get(key);
     if (started === undefined) return;
     this.pending.delete(key);
+    if (!this.metadataWithinLimit(started.runId) ||
+        !this.metadataWithinLimit(started.toolName) ||
+        !this.metadataWithinLimit(event.errorType)) {
+      this.droppedSpans += 1;
+      return;
+    }
     if (this.queue.length >= this.maxQueueSize) {
       this.droppedSpans += 1;
       return;
@@ -123,6 +144,10 @@ export class OtlpHttpSpanExporter implements EventRecorder {
       exported += batch.length;
     }
     return exported;
+  }
+
+  private metadataWithinLimit(value: string | undefined): boolean {
+    return value === undefined || Buffer.byteLength(value, "utf8") <= this.maxAttributeBytes;
   }
 
   private key(traceId: string, spanId: string): string {
