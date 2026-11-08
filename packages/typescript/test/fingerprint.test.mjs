@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { actionFingerprint } from "../dist/index.js";
+import { actionFingerprint, canonicalActionJson } from "../dist/index.js";
 
 const fixturePath = new URL("../../../conformance/fixtures/action-fingerprint.json", import.meta.url);
 const fixture = JSON.parse(readFileSync(fileURLToPath(fixturePath), "utf8"));
@@ -22,4 +22,12 @@ test("unsupported floating point values are rejected", () => {
 
 test("unpaired Unicode surrogates are rejected", () => {
   assert.throws(() => actionFingerprint({ invalid: "\ud800" }), TypeError);
+});
+
+test("the __proto__ action key is preserved in canonical JSON", () => {
+  const action = JSON.parse('{"__proto__":{"admin":true},"amount":2500}');
+  assert.equal(
+    canonicalActionJson(action),
+    '{"__proto__":{"admin":true},"amount":2500}',
+  );
 });
