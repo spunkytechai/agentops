@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime, timezone
 
 from agentops import RunEvent
-from agentops.observability import OtlpHttpSpanExporter
+from agentops import OtlpHttpSpanExporter
 
 
 class OtlpHttpSpanExporterTests(unittest.TestCase):
