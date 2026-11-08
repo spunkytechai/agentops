@@ -74,6 +74,25 @@ class ExactMatchMetric:
 
 
 @dataclass(frozen=True, slots=True)
+class NumericToleranceMetric:
+    absolute_tolerance: float
+    name: str = "numeric_tolerance"
+
+    def __post_init__(self) -> None:
+        if isinstance(self.absolute_tolerance, bool) or not isinstance(self.absolute_tolerance, (int, float)) or not math.isfinite(self.absolute_tolerance) or self.absolute_tolerance < 0:
+            raise ValueError("absolute_tolerance must be a non-negative finite number")
+
+    def score(self, expected: Any, actual: Any) -> float:
+        if isinstance(expected, bool) or isinstance(actual, bool):
+            return 0.0
+        if not isinstance(expected, (int, float)) or not isinstance(actual, (int, float)):
+            return 0.0
+        if not math.isfinite(expected) or not math.isfinite(actual):
+            return 0.0
+        return 1.0 if abs(expected - actual) <= self.absolute_tolerance else 0.0
+
+
+@dataclass(frozen=True, slots=True)
 class EvaluationCaseResult:
     case_id: str
     score: float
