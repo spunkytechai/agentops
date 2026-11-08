@@ -15,6 +15,9 @@ export interface OtlpHttpSpanExporterOptions {
 }
 
 type OtlpAttributeValue = string | number | boolean;
+const TRACE_ID = /^[0-9a-f]{32}$/;
+const SPAN_ID = /^[0-9a-f]{16}$/;
+
 type OtlpSpan = {
   traceId: string;
   spanId: string;
@@ -77,9 +80,17 @@ export class OtlpHttpSpanExporter implements EventRecorder {
 
   record(event: RunEvent): void {
     if (event.traceId === undefined || event.spanId === undefined) return;
+    if (typeof event.traceId !== "string" || !TRACE_ID.test(event.traceId) || /^0+$/.test(event.traceId) ||
+        typeof event.spanId !== "string" || !SPAN_ID.test(event.spanId) || /^0+$/.test(event.spanId) ||
+        (event.parentSpanId !== undefined &&
+          (typeof event.parentSpanId !== "string" || !SPAN_ID.test(event.parentSpanId) || /^0+$/.test(event.parentSpanId)))) {
+      this.droppedSpans += 1;
+      return;
+    }
     const key = this.key(event.traceId, event.spanId);
     if (event.type === "tool.started") {
-      if (!this.metadataWithinLimit(event.runId) || !this.metadataWithinLimit(event.toolName)) {
+      if (!this.metadataWithinLimit(event.runId) || !this.metadataWithinLimit(event.toolName) ||
+          !this.validTimestamp(event.timestamp)) {
         this.droppedSpans += 1;
         return;
       }
@@ -87,7 +98,15 @@ export class OtlpHttpSpanExporter implements EventRecorder {
         this.droppedSpans += 1;
         return;
       }
-      this.pending.set(key, Object.freeze({ ...event }));
+      this.pending.set(key, Object.freeze({
+        type: "tool.started",
+        runId: event.runId,
+        toolName: event.toolName,
+        timestamp: event.timestamp,
+        traceId: event.traceId,
+        spanId: event.spanId,
+        ...(event.parentSpanId === undefined ? {} : { parentSpanId: event.parentSpanId }),
+      }));
       return;
     }
     const started = this.pending.get(key);
@@ -95,7 +114,8 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     this.pending.delete(key);
     if (!this.metadataWithinLimit(started.runId) ||
         !this.metadataWithinLimit(started.toolName) ||
-        !this.metadataWithinLimit(event.errorType)) {
+        !this.metadataWithinLimit(event.errorType, true) ||
+        !this.validTimestamp(event.timestamp)) {
       this.droppedSpans += 1;
       return;
     }
@@ -146,8 +166,13 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     return exported;
   }
 
-  private metadataWithinLimit(value: string | undefined): boolean {
-    return value === undefined || Buffer.byteLength(value, "utf8") <= this.maxAttributeBytes;
+  private metadataWithinLimit(value: unknown, optional = false): boolean {
+    if (value === undefined) return optional;
+    return typeof value === "string" && Buffer.byteLength(value, "utf8") <= this.maxAttributeBytes;
+  }
+
+  private validTimestamp(value: unknown): boolean {
+    return typeof value === "string" && value.length <= 64 && Number.isFinite(Date.parse(value));
   }
 
   private key(traceId: string, spanId: string): string {
