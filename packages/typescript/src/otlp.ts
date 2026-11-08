@@ -84,7 +84,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     this.queue.push(this.toSpan(started, event));
   }
 
-  flush(): number {
+  async flush(): Promise<number> {
     let exported = 0;
     while (this.queue.length > 0) {
       const batch = this.queue.splice(0, this.maxBatchSize);
@@ -101,7 +101,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
       let succeeded = false;
       for (let attempt = 0; attempt <= this.maxRetries; attempt += 1) {
         try {
-          this.transport(this.endpoint, { "Content-Type": "application/json" }, body);
+          await this.transport(this.endpoint, { "Content-Type": "application/json" }, body);
           succeeded = true;
           break;
         } catch (error) {
