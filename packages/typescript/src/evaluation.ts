@@ -9,7 +9,7 @@ function freezeJson<T>(value: T): T {
 }
 
 function cloneJson(value: unknown): unknown {
-  return JSON.parse(canonicalJson(value)) as unknown;
+  return freezeJson(JSON.parse(canonicalJson(value)) as unknown);
 }
 
 function canonicalJson(value: unknown): string {
