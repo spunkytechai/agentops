@@ -36,6 +36,7 @@ test("store rejects duplicate run IDs and invalid baselines", async () => {
   const store = new InMemoryEvaluationRunStore();
   const report = await makeReport();
   store.save(report, "run-1");
+  assert.throws(() => store.save(report, ""), EvaluationRunStoreError);
   assert.throws(() => store.save(report, "run-1"), EvaluationRunStoreError);
   assert.throws(() => store.setBaseline("other-suite", "run-1"), EvaluationRunStoreError);
   assert.throws(() => store.setBaseline("support-quality", "missing"), EvaluationRunStoreError);
@@ -47,6 +48,7 @@ test("SQLite store recovers runs and baseline after reopening", async () => {
   const report = await makeReport();
   const database = new Database(filename);
   const store = new SqliteEvaluationRunStore(database, () => 1_800_000_000_123);
+  assert.throws(() => store.save(report, ""), EvaluationRunStoreError);
   const saved = store.save(report, "durable-1");
   store.setBaseline("support-quality", "durable-1");
   database.close();
