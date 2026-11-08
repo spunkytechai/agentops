@@ -1,6 +1,7 @@
 """Deterministic, provider-neutral evaluation and regression primitives."""
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 import math
 from collections.abc import Callable, Iterable
@@ -144,7 +145,7 @@ class EvaluationSuite:
         results: list[EvaluationCaseResult] = []
         for case in self.cases:
             try:
-                actual = operation(case.input)
+                actual = operation(deepcopy(case.input))
             except Exception as exc:
                 results.append(EvaluationCaseResult(case.case_id, 0.0, False, type(exc).__name__))
                 continue
@@ -168,7 +169,7 @@ class EvaluationSuite:
         results: list[EvaluationCaseResult] = []
         for case in self.cases:
             try:
-                actual = operation(case.input)
+                actual = operation(deepcopy(case.input))
                 if hasattr(actual, "__await__"):
                     actual = await actual
             except Exception as exc:
