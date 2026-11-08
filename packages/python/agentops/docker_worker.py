@@ -31,10 +31,16 @@ class DockerWorker:
         tmpfs_size_bytes: int = 16_777_216,
         max_concurrent_workers: int = 4,
     ) -> None:
-        if not isinstance(image, str) or not image or image.startswith("-") or "\x00" in image or any(ch.isspace() for ch in image):
-            raise ValueError("image must be a non-empty Docker image reference without whitespace")
-        if not isinstance(docker_executable, str) or not docker_executable or "\x00" in docker_executable:
-            raise ValueError("docker_executable must be non-empty")
+        if (
+            not isinstance(image, str) or not image or image.startswith("-")
+            or "\x00" in image or any(ch.isspace() for ch in image)
+        ):
+            raise ValueError("image must be a non-empty Docker image reference without whitespace or NUL")
+        if (
+            not isinstance(docker_executable, str) or not docker_executable
+            or "\x00" in docker_executable
+        ):
+            raise ValueError("docker_executable must be non-empty and must not contain NUL bytes")
         if isinstance(memory_limit_bytes, bool) or not isinstance(memory_limit_bytes, int) or memory_limit_bytes <= 0:
             raise ValueError("memory_limit_bytes must be a positive integer")
         if isinstance(pids_limit, bool) or not isinstance(pids_limit, int) or pids_limit <= 0:
