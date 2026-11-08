@@ -66,6 +66,8 @@ test("rejects unsafe image references and resource configurations", () => {
   assert.throws(() => new DockerWorker("example/worker", { memoryLimitBytes: 0 }), TypeError);
   assert.throws(() => new DockerWorker("example/worker", { cpuLimit: 0 }), TypeError);
   assert.throws(() => new DockerWorker("example/worker", { pidsLimit: -1 }), TypeError);
+  assert.throws(() => new DockerWorker("example/worker\0"), TypeError);
+  assert.throws(() => new DockerWorker("example/worker", { dockerExecutable: "docker\0" }), TypeError);
 });
 
 test("removes the container after a worker deadline", async () => {

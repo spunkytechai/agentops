@@ -18,10 +18,11 @@ function positiveSafeInteger(value: number, name: string): void {
 function removeContainer(dockerExecutable: string, name: string): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = () => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer !== undefined) clearTimeout(timer);
       resolve();
     };
     let child;
@@ -33,7 +34,7 @@ function removeContainer(dockerExecutable: string, name: string): Promise<void> 
       finish();
       return;
     }
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       child.kill("SIGKILL");
       finish();
     }, 5_000);
@@ -61,11 +62,13 @@ export class DockerWorker {
     private readonly image: string,
     options: DockerWorkerOptions = {},
   ) {
-    if (!image || image.startsWith("-") || /\s/.test(image)) {
+    if (!image || image.startsWith("-") || image.includes("\0") || /\s/.test(image)) {
       throw new TypeError("image must be a non-empty Docker image reference without whitespace");
     }
     this.dockerExecutable = options.dockerExecutable ?? "docker";
-    if (!this.dockerExecutable.trim()) throw new TypeError("dockerExecutable must be non-empty");
+    if (!this.dockerExecutable.trim() || this.dockerExecutable.includes("\0")) {
+      throw new TypeError("dockerExecutable must be non-empty and must not contain NUL bytes");
+    }
     this.timeoutMs = options.timeoutMs ?? 30_000;
     if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) throw new TypeError("timeoutMs must be positive and finite");
     this.maxConcurrentWorkers = options.maxConcurrentWorkers ?? 4;
