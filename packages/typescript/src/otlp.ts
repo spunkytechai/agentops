@@ -18,6 +18,20 @@ type OtlpAttributeValue = string | number | boolean;
 const TRACE_ID = /^[0-9a-f]{32}$/;
 const SPAN_ID = /^[0-9a-f]{16}$/;
 
+function isWellFormedUnicode(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const unit = value.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+}
+
 type OtlpSpan = {
   traceId: string;
   spanId: string;
@@ -80,10 +94,13 @@ export class OtlpHttpSpanExporter implements EventRecorder {
 
   record(event: RunEvent): void {
     if (event.traceId === undefined || event.spanId === undefined) return;
-    if (typeof event.traceId !== "string" || !TRACE_ID.test(event.traceId) || /^0+$/.test(event.traceId) ||
-        typeof event.spanId !== "string" || !SPAN_ID.test(event.spanId) || /^0+$/.test(event.spanId) ||
+    if (typeof event.traceId !== "string" || event.traceId.length !== 32 ||
+        !TRACE_ID.test(event.traceId) || /^0+$/.test(event.traceId) ||
+        typeof event.spanId !== "string" || event.spanId.length !== 16 ||
+        !SPAN_ID.test(event.spanId) || /^0+$/.test(event.spanId) ||
         (event.parentSpanId !== undefined &&
-          (typeof event.parentSpanId !== "string" || !SPAN_ID.test(event.parentSpanId) || /^0+$/.test(event.parentSpanId)))) {
+          (typeof event.parentSpanId !== "string" || event.parentSpanId.length !== 16 ||
+            !SPAN_ID.test(event.parentSpanId) || /^0+$/.test(event.parentSpanId)))) {
       this.droppedSpans += 1;
       return;
     }
@@ -168,7 +185,8 @@ export class OtlpHttpSpanExporter implements EventRecorder {
 
   private metadataWithinLimit(value: unknown, optional = false): boolean {
     if (value === undefined) return optional;
-    return typeof value === "string" && Buffer.byteLength(value, "utf8") <= this.maxAttributeBytes;
+    return typeof value === "string" && isWellFormedUnicode(value) &&
+      Buffer.byteLength(value, "utf8") <= this.maxAttributeBytes;
   }
 
   private validTimestamp(value: unknown): boolean {
