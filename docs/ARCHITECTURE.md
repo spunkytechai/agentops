@@ -59,7 +59,7 @@ The default recorder stores tool name, run ID, event type, timestamp, duration, 
 - transactional server-database adapters for approval and registry stores;
 - distributed identity and approval scopes;
 - OpenTelemetry SDK integration, sampling, and automatic instrumentation;
-- evaluation datasets and deterministic replay;
+- richer model-specific evaluators, dataset versioning, and deterministic replay;
 - isolated worker adapters and resource budgets.
 
 ## OTLP trace export
@@ -69,3 +69,9 @@ The default recorder stores tool name, run ID, event type, timestamp, duration, 
 The exporter accepts an injected HTTP transport (synchronous in Python, asynchronous in TypeScript), sets `Content-Type: application/json`, bounds pending and completed spans, batches requests, and retries failed batches. A failed batch remains queued and `flush()` raises the transport error; callers should retry from a controlled worker or shutdown hook. The transport is responsible for actual HTTP behavior, TLS, authentication headers, timeouts, and response validation.
 
 The exporter emits only run ID, tool name, status, duration, and error class attributes. It does not serialize prompts, arguments, results, exception messages, arbitrary event metadata, or credentials. Queue overflow is observable through `dropped_spans` / `droppedSpans`. This is an exporter, not a complete OpenTelemetry SDK or an automatic instrumentation layer.
+
+## Evaluation and regression engine
+
+`EvaluationSuite` runs a fixed sequence of `EvaluationCase` inputs through a caller-supplied operation. Each case has a unique ID, JSON-compatible input and expected value, and positive weight. An `EvaluationMetric` returns a finite score from 0 to 1. The built-in `ExactMatchMetric` compares JSON values independent of object key order; `NumericToleranceMetric` scores numeric outputs within an absolute tolerance. The suite reports per-case scores, pass/fail counts, weighted score, and pass rate. Python provides synchronous `run()` and sequential asynchronous `run_async()`; TypeScript provides asynchronous `run()`.
+
+`compare_evaluations(baseline, candidate, max_score_drop=0)` requires matching suite names and case ID sets. It reports aggregate score delta and case IDs whose scores fell beyond the allowed drop. It is a comparison primitive, not an automated CI gate or persistent baseline store. Both SDKs execute the shared `conformance/fixtures/evaluations.json` fixture.
