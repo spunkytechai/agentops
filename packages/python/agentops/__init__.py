@@ -9,6 +9,18 @@ from .approvals import (
     SqliteApprovalStore,
     ApprovalStore,
 )
+from .evaluation import (
+    EvaluationCase,
+    EvaluationCaseResult,
+    EvaluationMetric,
+    EvaluationRegression,
+    EvaluationRegressionError,
+    EvaluationReport,
+    EvaluationSuite,
+    ExactMatchMetric,
+    NumericToleranceMetric,
+    compare_evaluations,
+)
 from .events import InMemoryRecorder, RunEvent, TraceContext
 from .fingerprint import action_fingerprint, canonical_action_json
 from .otlp import OtlpHttpSpanExporter
@@ -25,6 +37,16 @@ from .registry import (
 from .runtime import ToolExecutionTimeoutError, ToolExecutor
 
 __all__ = [
+    "EvaluationCase",
+    "EvaluationCaseResult",
+    "EvaluationMetric",
+    "EvaluationRegression",
+    "EvaluationRegressionError",
+    "EvaluationReport",
+    "EvaluationSuite",
+    "ExactMatchMetric",
+    "compare_evaluations",
+    "NumericToleranceMetric",
     "AgentAlreadyRegisteredError",
     "AgentDefinition",
     "AgentNotFoundError",

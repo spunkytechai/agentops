@@ -82,3 +82,7 @@ The initial SDK is not a process sandbox, secret manager, network firewall, prom
 13. Treat trace context as correlation only; derive identity and authorization from trusted host authentication.
 
 The threat model is preliminary and will evolve with the runtime and integration surface.
+
+## Evaluation data handling
+
+Evaluation cases and reports are application data, not a secure dataset repository. Inputs are passed to the operation callback and may contain sensitive information; the host owns dataset access control, retention, and storage. The engine records operation exception class names only, never exception messages, prompts, or actual outputs in the report. Custom metrics execute in-process and must be treated as trusted code. Exact-match inputs are restricted to finite JSON-compatible values; integer values must be safe across JavaScript and Python.

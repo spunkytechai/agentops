@@ -24,6 +24,8 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 - W3C-compatible trace, span, and parent-span identifiers propagated through execution lifecycle events in both SDKs.
 - In-memory recorders that exclude prompts, arguments, results, and credentials.
 - OTLP/HTTP JSON trace export in both SDKs, with bounded queues, batching, retries, and allowlisted span attributes.
+- Deterministic evaluation suites with weighted cases, exact-match and numeric-tolerance metrics, per-case reports, and baseline regression detection.
+- Shared Python/TypeScript evaluation conformance fixture.
 - Shared cross-language policy and action-fingerprint fixtures.
 - Automated unit tests and CI across supported Python versions, plus Node.js.
 
@@ -203,6 +205,22 @@ await executor.execute("reports.read", operation, "report-run-1", { traceContext
 
 Trace context can be exported as completed OTLP spans using `OtlpHttpSpanExporter` in either SDK. The exporter implements the OTLP/HTTP JSON trace request shape and accepts an injected transport (synchronous in Python, asynchronous in TypeScript); no OpenTelemetry SDK or networking dependency is required. Call `flush()` from a worker or shutdown hook (await it in TypeScript). The exporter only emits allowlisted operational attributes; it never serializes prompts, arguments, results, exception messages, or credentials. This is an OTLP exporter, not a complete OpenTelemetry SDK: automatic instrumentation, metrics, logs, sampling, and `traceparent` propagation remain out of scope.
 
+## Agent evaluation and regression detection
+
+The evaluation engine runs fixed JSON-compatible datasets against a supplied operation, scores each case with a pluggable metric, and produces weighted aggregate score and pass rate. Built-in metrics include exact JSON-value matching and numeric tolerance. Operation failures are recorded by exception class only; exception messages and model/tool payloads are not copied into reports. Compare baseline and candidate reports to detect aggregate score drops and identify regressed case IDs. The SDK runs cases sequentially; it does not call an LLM, create datasets, or guarantee deterministic model behavior. Store datasets and reports under the host application's access controls.
+
+```python
+from agentops import EvaluationCase, EvaluationSuite, ExactMatchMetric, compare_evaluations
+
+suite = EvaluationSuite("smoke", [
+    EvaluationCase("greeting", {"prompt": "hello"}, "Hello!", weight=2),
+], metric=ExactMatchMetric())
+report = suite.run(lambda item: "Hello!")
+print(report.weighted_score, report.pass_rate)
+# Compare a later report with the stored baseline.
+# regression = compare_evaluations(baseline, report)
+```
+
 ## Security boundary
 
 Policy and approval are application-level controls, **not a sandbox**. The default agent registry is process-local; its optional SQLite store persists immutable definitions across restarts but does not verify agent artifacts or publisher identity. SQLite approval storage provides durable state and atomic single-use transitions, but does not authenticate approvers or protect the database file. The host application is responsible for authenticating approvers, authorizing who may approve which actions, protecting approval APIs, and persisting decisions where required. Approval never overrides a policy deny. Timeouts request cancellation (Python task cancellation or TypeScript AbortSignal); a tool must cooperate with cancellation. A timeout does not terminate arbitrary native code, detached work, or external side effects already accepted by another service. Run untrusted code in a hardened worker/container and use least-privilege credentials. Read [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
@@ -225,7 +243,8 @@ Policy and approval are application-level controls, **not a sandbox**. The defau
 - [ ] Transactional server-database adapters for multi-host deployments
 - [ ] Distributed identity and approval scopes
 - [x] Initial OTLP/HTTP JSON trace exporter for Python and TypeScript
-- [ ] OpenTelemetry SDK integration, sampling, and evaluation engine
+- [ ] OpenTelemetry SDK integration, sampling, and automatic instrumentation
+- [x] Deterministic evaluation engine and baseline regression comparison
 - [ ] Isolated worker adapters and deployment guides
 - [ ] Independent security review before stable release
 
