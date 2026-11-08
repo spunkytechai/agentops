@@ -90,6 +90,10 @@ Do not post bank details, tax identifiers, contracts, confidential security repo
 - Sponsorship payments may have income-tax, GST, invoicing, withholding, and accounting implications. Confirm the correct treatment, contracting party, receipts, and any required registration with a qualified Indian chartered accountant before accepting corporate funds.
 - GitHub Sponsors onboarding requires the account holder to complete GitHub's identity, banking, tax, and security requirements.
 
+## Corporate outreach
+
+Use the [Corporate Sponsor Outreach Kit](SPONSOR_OUTREACH.md) for prospect qualification, a first-contact email, a 90-day milestone proposal, and a follow-up process. It identifies potential prospects only; no listed company is an existing sponsor or partner.
+
 ## Current limitations
 
 AgentOps is early development (0.x). Sponsorship does not mean the project is stable, independently audited, production-certified, or compliant with any particular regulation. The hosted control plane, subscription billing, enterprise SSO, contractual support, and service-level commitments described in the broader commercialization strategy are not currently available.
