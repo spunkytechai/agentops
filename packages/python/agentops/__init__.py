@@ -22,6 +22,7 @@ from .registry import (
 )
 from .runtime import ToolExecutionTimeoutError, ToolExecutor
 from .worker import WorkerExecutionError, WorkerProcess
+from .docker_worker import DockerWorker
 
 __all__ = [
     "EvaluationRun", "EvaluationRunStore", "EvaluationRunStoreError",
@@ -37,5 +38,5 @@ __all__ = [
     "OtlpHttpSpanExporter", "PolicyDecision", "PolicyDeniedError", "PolicyRule",
     "RunEvent", "ToolExecutionTimeoutError", "ToolExecutor", "ToolPolicy",
     "TraceContext", "action_fingerprint", "canonical_action_json",
-    "WorkerExecutionError", "WorkerProcess",
+    "WorkerExecutionError", "WorkerProcess", "DockerWorker",
 ]
