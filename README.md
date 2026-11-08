@@ -300,7 +300,8 @@ This is a hardened Docker profile, not an escape-proof boundary. The Docker daem
 - [x] Deterministic evaluation engine and baseline regression comparison
 - [x] Persistent evaluation run history and suite-specific baselines
 - [x] Versioned subprocess worker adapters, byte budgets, deadlines, and isolation guidance
-- [x] Hardened Docker worker adapter and real-container integration tests\n- [ ] Independent security review before stable release
+- [x] Hardened Docker worker adapter and real-container integration tests
+- [ ] Independent security review before stable release
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to participate and [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
