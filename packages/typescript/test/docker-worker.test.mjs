@@ -80,3 +80,12 @@ test("removes the container after a worker deadline", async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("executes inside a real hardened Docker container", {
+  skip: process.env.AGENTOPS_DOCKER_INTEGRATION !== "1",
+}, async () => {
+  const worker = new DockerWorker("agentops-example-worker:ci");
+  assert.deepEqual(await worker.execute("identity.echo", { value: "container" }), {
+    echo: { value: "container" },
+  });
+});
