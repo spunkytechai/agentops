@@ -1,10 +1,13 @@
-import unittest\nimport json\nfrom pathlib import Path
+import unittest
+import json
+from pathlib import Path
 
 from agentops import (
     EvaluationCase,
     EvaluationRegressionError,
     EvaluationSuite,
-    NumericToleranceMetric,\n    EvaluationMetric,
+    NumericToleranceMetric,
+    EvaluationMetric,
     ExactMatchMetric,
     compare_evaluations,
 )
@@ -95,7 +98,13 @@ class EvaluationEngineTests(unittest.TestCase):
     def test_invalid_case_weights_and_metric_scores_are_rejected(self):
         with self.assertRaises(ValueError):
             EvaluationCase("bad", 1, 1, weight=0)
-        class InvalidMetric:\n            name = "invalid"\n\n            def score(self, _expected, _actual):\n                return 2\n\n        suite = EvaluationSuite("bad-metric", (EvaluationCase("a", 1, 1),), metric=InvalidMetric())
+        class InvalidMetric:
+            name = "invalid"
+
+            def score(self, _expected, _actual):
+                return 2
+
+        suite = EvaluationSuite("bad-metric", (EvaluationCase("a", 1, 1),), metric=InvalidMetric())
         with self.assertRaises(ValueError):
             suite.run(lambda x: x)
 
