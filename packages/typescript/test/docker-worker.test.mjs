@@ -81,6 +81,11 @@ test("removes the container after a worker deadline", async () => {
   }
 });
 
+test("does not mask a synchronous Docker spawn failure during cleanup", async () => {
+  const worker = new DockerWorker("example/worker:latest", { dockerExecutable: "\\0" });
+  await assert.rejects(worker.execute("tool", {}), (error) => error.name !== "ReferenceError");
+});
+
 test("executes inside a real hardened Docker container", {
   skip: process.env.AGENTOPS_DOCKER_INTEGRATION !== "1",
 }, async () => {
