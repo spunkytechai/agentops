@@ -1,0 +1,16 @@
+{
+  "suite": "shared-evaluation-conformance",
+  "pass_threshold": 1.0,
+  "cases": [
+    {"id": "exact-string", "input": "alpha", "expected": "alpha", "actual": "alpha", "weight": 1},
+    {"id": "canonical-object", "input": {"b": 2, "a": 1}, "expected": {"a": 1, "b": 2}, "actual": {"a": 1, "b": 2}, "weight": 2},
+    {"id": "mismatch", "input": "wrong", "expected": "right", "actual": "wrong", "weight": 1}
+  ],
+  "expected": {
+    "total_cases": 3,
+    "passed_cases": 2,
+    "failed_cases": 1,
+    "weighted_score": 0.75,
+    "pass_rate": 0.6666666666666666
+  }
+}
