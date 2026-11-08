@@ -94,7 +94,8 @@ export class OtlpHttpSpanExporter implements EventRecorder {
 
   record(event: RunEvent): void {
     if (event.traceId === undefined || event.spanId === undefined) return;
-    if (typeof event.traceId !== "string" || event.traceId.length !== 32 ||
+    if ((event.type !== "tool.started" && event.type !== "tool.succeeded" && event.type !== "tool.failed") ||
+        typeof event.traceId !== "string" || event.traceId.length !== 32 ||
         !TRACE_ID.test(event.traceId) || /^0+$/.test(event.traceId) ||
         typeof event.spanId !== "string" || event.spanId.length !== 16 ||
         !SPAN_ID.test(event.spanId) || /^0+$/.test(event.spanId) ||
@@ -132,6 +133,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     if (!this.metadataWithinLimit(started.runId) ||
         !this.metadataWithinLimit(started.toolName) ||
         !this.metadataWithinLimit(event.errorType, true) ||
+        !this.validDuration(event.durationMs) ||
         !this.validTimestamp(event.timestamp)) {
       this.droppedSpans += 1;
       return;
@@ -191,6 +193,12 @@ export class OtlpHttpSpanExporter implements EventRecorder {
 
   private validTimestamp(value: unknown): boolean {
     return typeof value === "string" && value.length <= 64 && Number.isFinite(Date.parse(value));
+  }
+
+  private validDuration(value: unknown): boolean {
+    return value === undefined ||
+      (typeof value === "number" && Number.isFinite(value) && value >= 0 &&
+        value <= Number.MAX_SAFE_INTEGER);
   }
 
   private key(traceId: string, spanId: string): string {
