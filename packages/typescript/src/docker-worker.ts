@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { WorkerProcess, type WorkerProcessOptions } from "./worker.js";
+import { WorkerExecutionError, WorkerProcess, type WorkerProcessOptions } from "./worker.js";
 
 export interface DockerWorkerOptions extends WorkerProcessOptions {
   readonly dockerExecutable?: string;
@@ -67,6 +67,7 @@ export class DockerWorker {
     this.dockerExecutable = options.dockerExecutable ?? "docker";
     if (!this.dockerExecutable.trim()) throw new TypeError("dockerExecutable must be non-empty");
     this.timeoutMs = options.timeoutMs ?? 30_000;
+    if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) throw new TypeError("timeoutMs must be positive and finite");
     this.maxConcurrentWorkers = options.maxConcurrentWorkers ?? 4;
     positiveSafeInteger(this.maxConcurrentWorkers, "maxConcurrentWorkers");
     this.memoryLimitBytes = options.memoryLimitBytes ?? 268_435_456;
