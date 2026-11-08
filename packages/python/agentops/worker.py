@@ -81,13 +81,20 @@ class WorkerProcess:
             finally:
                 chunks.put(None)
 
+        def write_stdin() -> None:
+            try:
+                assert process.stdin is not None
+                process.stdin.write(line)
+                process.stdin.close()
+            except OSError:
+                pass
+
+        deadline = time.monotonic() + self.timeout_seconds
         reader = threading.Thread(target=read_stdout, daemon=True)
+        writer = threading.Thread(target=write_stdin, daemon=True)
         reader.start()
+        writer.start()
         try:
-            assert process.stdin is not None
-            process.stdin.write(line)
-            process.stdin.close()
-            deadline = time.monotonic() + self.timeout_seconds
             output = bytearray()
             eof = False
             while not eof:
@@ -127,5 +134,6 @@ class WorkerProcess:
                 process.kill()
             process.wait()
             reader.join(timeout=1)
+            writer.join(timeout=1)
             if process.stdout is not None:
                 process.stdout.close()
