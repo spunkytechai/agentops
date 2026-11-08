@@ -23,7 +23,7 @@
     "test": "npm run build && node --test test/*.test.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "typescript": "^7.0.2",
     "better-sqlite3": "^11.8.1",
     "@types/node": "^26.6.6"
   },
