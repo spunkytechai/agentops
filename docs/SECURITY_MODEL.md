@@ -71,6 +71,14 @@ The Python and TypeScript WorkerProcess adapters launch a fresh child process pe
 
 The protocol is one request per process, not a pool or multi-tenant scheduler. JSON serialization excludes unsupported values; the host must validate schemas and authorize tool names before dispatch. Worker errors intentionally omit stderr and arbitrary exception text. A killed process cannot roll back side effects already committed to external systems.
 
+## Docker container worker profile
+
+`DockerWorker` wraps the bounded JSONL `WorkerProcess` adapter with a fresh, uniquely named Docker container for every invocation. The adapter uses a preloaded image (`--pull=never`), does not mount host paths or forward host environment variables, and applies a fixed profile: `--network=none`, `--read-only`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`, UID/GID 65532, memory and equal memory-swap limits, CPU quota, PID limit, and a size-limited `/tmp` tmpfs with `noexec,nosuid,nodev`. Only resource budgets are configurable; callers cannot disable the security flags through the public adapter. The existing request/response byte limits and execution deadline continue to apply.
+
+Containers are named before launch. Docker `--rm` removes normal exits, and the host issues a bounded `docker rm --force` cleanup after success, protocol failure, timeout, or output overflow. Cleanup is best-effort when the daemon is unavailable. A killed client or unavailable daemon can leave an orphan container; production deployments should monitor container inventory and enforce daemon-level quotas. The adapter starts one container per call and does not provide a persistent pool or distributed scheduler.
+
+**Docker is not an escape-proof sandbox.** Containers share the host kernel, and access to a privileged Docker daemon is effectively host-level authority. Keep the daemon and kernel patched, protect the Docker socket, prefer rootless Docker or user-namespace remapping, avoid privileged daemon configurations, and apply host-level quotas. For hostile multi-tenant code, consider gVisor, Kata Containers, or microVMs, and validate the actual deployed profile with a security review. Do not mount the Docker socket inside the worker. No host credentials are injected by this adapter; use narrowly scoped, explicit secret delivery only if the workload requires it.
+
 ## Limitations
 The initial SDK is not a process sandbox, secret manager, network firewall, prompt-injection detector, model-output validator, or distributed audit log. An allow-list does not replace least-privilege credentials or infrastructure isolation.
 
