@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import OrderedDict, deque
 from datetime import datetime, timezone
 import json
+import re
 from threading import RLock
 from typing import Callable, Mapping
 from urllib.parse import urlsplit
@@ -11,6 +12,8 @@ from urllib.parse import urlsplit
 from .events import RunEvent
 
 HttpTransport = Callable[[str, Mapping[str, str], str], None]
+_TRACE_ID = re.compile(r"^[0-9a-f]{32}$")
+_SPAN_ID = re.compile(r"^[0-9a-f]{16}$")
 
 
 class OtlpHttpSpanExporter:
@@ -65,6 +68,22 @@ class OtlpHttpSpanExporter:
         with self._lock:
             if event.trace_id is None or event.span_id is None:
                 return
+            if (
+                not isinstance(event.trace_id, str) or not _TRACE_ID.fullmatch(event.trace_id)
+                or event.trace_id == "0" * 32
+                or not isinstance(event.span_id, str) or not _SPAN_ID.fullmatch(event.span_id)
+                or event.span_id == "0" * 16
+                or (
+                    event.parent_span_id is not None
+                    and (
+                        not isinstance(event.parent_span_id, str)
+                        or not _SPAN_ID.fullmatch(event.parent_span_id)
+                        or event.parent_span_id == "0" * 16
+                    )
+                )
+            ):
+                self.dropped_spans += 1
+                return
             key = (event.trace_id, event.span_id)
             if event.event_type == "tool.started":
                 if not self._metadata_within_limit(event.run_id) or not self._metadata_within_limit(event.tool_name):
@@ -81,7 +100,7 @@ class OtlpHttpSpanExporter:
             if (
                 not self._metadata_within_limit(started.run_id)
                 or not self._metadata_within_limit(started.tool_name)
-                or not self._metadata_within_limit(event.error_type)
+                or not self._metadata_within_limit(event.error_type, optional=True)
             ):
                 self.dropped_spans += 1
                 return
@@ -90,9 +109,9 @@ class OtlpHttpSpanExporter:
                 return
             self._queue.append(self._span(started, event))
 
-    def _metadata_within_limit(self, value: object) -> bool:
+    def _metadata_within_limit(self, value: object, *, optional: bool = False) -> bool:
         if value is None:
-            return True
+            return optional
         if not isinstance(value, str):
             return False
         try:
