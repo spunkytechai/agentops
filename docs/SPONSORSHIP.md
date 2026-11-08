@@ -6,7 +6,7 @@ The core SDKs remain available under the Apache-2.0 license. Sponsorship funds m
 
 **GitHub Sponsors:** [github.com/sponsors/spunkytechai](https://github.com/sponsors/spunkytechai)
 
-> Sponsorship availability depends on the maintainer completing GitHub Sponsors onboarding and receiving approval. The repository funding configuration does not itself activate payouts.
+> The GitHub Sponsors profile for @spunkytechai has been approved and is public. Monthly and one-time tiers must still be configured in the Sponsors dashboard before supporters can select fixed contribution levels. The repository funding configuration does not itself configure tiers.
 
 ## What sponsorship funds
 

@@ -316,7 +316,7 @@ AgentOps is open source under Apache-2.0. Sponsorship helps fund SDK maintenance
 - [Become a GitHub Sponsor](https://github.com/sponsors/spunkytechai)
 - [Corporate sponsorship and partnership information](docs/SPONSORSHIP.md)
 
-GitHub Sponsors onboarding and approval are required before the profile can accept payments. Corporate sponsorship terms are agreed separately. Sponsorship does not purchase roadmap control or imply product endorsement.
+The GitHub Sponsors profile for @spunkytechai is approved and public; monthly and one-time tiers still need to be configured in the Sponsors dashboard. Corporate sponsorship terms are agreed separately. Sponsorship does not purchase roadmap control or imply product endorsement.
 
 ## License
 
