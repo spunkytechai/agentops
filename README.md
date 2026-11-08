@@ -254,7 +254,7 @@ A subprocess is only a process boundary. It does not by itself restrict filesyst
 - [ ] OpenTelemetry SDK integration, sampling, and automatic instrumentation
 - [x] Deterministic evaluation engine and baseline regression comparison
 - [x] Persistent evaluation run history and suite-specific baselines
-- [ ] Isolated worker adapters and deployment guides
+- [x] Versioned subprocess worker adapters, byte budgets, deadlines, and isolation guidance
 - [ ] Independent security review before stable release
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to participate and [SECURITY.md](SECURITY.md) for vulnerability reporting.
