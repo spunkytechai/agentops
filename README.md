@@ -251,6 +251,7 @@ worker = DockerWorker(
     timeout_seconds=10,
     memory_limit_bytes=512 * 1024 * 1024,
     cpu_limit=1.5,
+  max_concurrent_workers=4,
     pids_limit=32,
 )
 result = worker.execute("identity.echo", {"message": "hello"})
@@ -265,12 +266,15 @@ const worker = new DockerWorker("agentops-example-worker:local", {
   timeoutMs: 10_000,
   memoryLimitBytes: 512 * 1024 * 1024,
   cpuLimit: 1.5,
+  maxConcurrentWorkers: 4,
   pidsLimit: 32,
 });
 const result = await worker.execute("identity.echo", { message: "hello" });
 ```
 
 The image must already exist locally (`--pull=never`). By default, each invocation gets a fresh named container with no network, no host mounts, a read-only root filesystem, non-root UID/GID 65532, all Linux capabilities dropped, no-new-privileges, a 256 MiB memory/no-swap limit, one CPU, 64 PIDs, and a 16 MiB restricted `/tmp` tmpfs. The existing JSONL protocol, byte budgets, and deadline still apply. The container is explicitly removed after completion or timeout.
+
+Each `DockerWorker` instance limits concurrent containers to four by default. Set `max_concurrent_workers` or `maxConcurrentWorkers` to tune the per-instance cap; callers waiting for a slot fail when the configured deadline expires. This is an in-process limit, not a cluster-wide quota.
 
 This is a hardened Docker profile, not an escape-proof boundary. The Docker daemon and host kernel remain trusted. Prefer rootless Docker/user-namespace remapping, keep the daemon patched, and consider gVisor, Kata Containers, or microVMs for hostile multi-tenant workloads. No credentials or host environment variables are forwarded by this adapter. See [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
 
