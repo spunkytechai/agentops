@@ -50,6 +50,36 @@ class OtlpHttpSpanExporterTests(unittest.TestCase):
         self.assertNotIn("arguments", encoded)
         self.assertNotIn("secret", encoded)
 
+    def test_rejects_collector_url_with_embedded_credentials(self):
+        with self.assertRaises(ValueError):
+            OtlpHttpSpanExporter(
+                "https://user:password@collector:4318",
+                lambda url, headers, body: None,
+            )
+
+    def test_drops_spans_with_oversized_exported_metadata(self):
+        exporter = OtlpHttpSpanExporter(
+            "http://collector:4318", lambda url, headers, body: None,
+            max_attribute_bytes=8,
+        )
+        exporter.record(self.event(
+            "tool.started", "2026-11-08T00:00:00", run_id="r" * 9
+        ))
+        exporter.record(self.event(
+            "tool.succeeded", "2026-11-08T00:00:00.001",
+            run_id="r" * 9, duration_ms=1,
+        ))
+        self.assertEqual(exporter.dropped_spans, 1)
+        self.assertEqual(exporter.flush(), 0)
+
+        exporter.record(self.event("tool.started", "2026-11-08T00:00:01"))
+        exporter.record(self.event(
+            "tool.failed", "2026-11-08T00:00:01.001",
+            error_type="SensitiveErrorName",
+        ))
+        self.assertEqual(exporter.dropped_spans, 2)
+        self.assertEqual(exporter.flush(), 0)
+
     def test_failed_export_retains_batch_for_retry_and_bounds_pending_spans(self):
         attempts = []
         def transport(url, headers, body):
