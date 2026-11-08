@@ -87,3 +87,12 @@ test("SQLite store rejects invalid reports before persisting a run ID", async ()
   assert.equal(saved.runId, "retryable-run");
   database.close();
 });
+
+test("SQLite evaluation store enforces baseline foreign keys", () => {
+  const database = new Database(":memory:");
+  new SqliteEvaluationRunStore(database);
+  assert.throws(() => database.prepare(
+    "INSERT INTO agentops_evaluation_baselines (suite_name, run_id) VALUES (?, ?)",
+  ).run("support-quality", "missing-run"));
+  database.close();
+});
