@@ -127,3 +127,13 @@ test("drops malformed Unicode metadata and trace IDs with trailing newlines", ()
   }));
   assert.equal(exporter.droppedSpans, 2);
 });
+
+test("drops spans with invalid duration metadata", async () => {
+  const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {});
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z"));
+  exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.001Z", {
+    durationMs: "x".repeat(10_000),
+  }));
+  assert.equal(exporter.droppedSpans, 1);
+  assert.equal(await exporter.flush(), 0);
+});
