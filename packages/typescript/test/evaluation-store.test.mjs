@@ -47,6 +47,10 @@ test("SQLite store recovers runs and baseline after reopening", async () => {
   const reopened = new SqliteEvaluationRunStore(database);
   assert.deepEqual(reopened.get("durable-1"), saved);
   assert.deepEqual(reopened.getBaseline("support-quality"), saved);
+  const replacement = reopened.save(report, "durable-2");
+  reopened.setBaseline("support-quality", "durable-2");
+  assert.deepEqual(reopened.getBaseline("support-quality"), replacement);
+  assert.throws(() => reopened.save(report, "durable-2"), EvaluationRunStoreError);
   database.close();
 });
 
