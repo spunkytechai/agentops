@@ -120,10 +120,10 @@ test("rejects invalid trace identifiers and does not retain arbitrary event fiel
 test("drops malformed Unicode metadata and trace IDs with trailing newlines", () => {
   const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {});
   exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", {
-    runId: "\\ud800",
+    runId: "\ud800",
   }));
   exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", {
-    traceId: "1".repeat(32) + "\\n",
+    traceId: "1".repeat(32) + "\n",
   }));
   assert.equal(exporter.droppedSpans, 2);
 });
