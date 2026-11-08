@@ -7,7 +7,7 @@ import queue
 import subprocess
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
 
