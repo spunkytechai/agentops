@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a reproducible defect in AgentOps.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve AgentOps. Do not include credentials, private prompts, customer data, or production traces.
+  - type: input
+    id: version
+    attributes:
+      label: AgentOps version
+      description: Include the package version or commit SHA.
+      placeholder: "0.x.y"
+    validations:
+      required: true
+  - type: dropdown
+    id: sdk
+    attributes:
+      label: SDK
+      options:
+        - Python
+        - TypeScript
+        - Both
+        - Documentation / tooling
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, runtime version, database adapter, and relevant configuration (redact secrets).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest deterministic reproduction.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or traceback
+      description: Remove tokens, credentials, personal data, prompts, and customer payloads.
+    validations:
+      required: false
