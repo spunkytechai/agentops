@@ -14,6 +14,18 @@ This document describes a proposed business model and validation plan. It does n
 - **Clear separation:** Any future proprietary hosted control plane must live in a separately identified service/repository, with a documented API boundary. Do not move existing public core code into a private repository or change its license retroactively.
 - **Customer portability:** Provide documented export paths for traces, evaluation results, policies, and configuration. Do not make proprietary storage the only way to use the SDK.
 
+## Brand and naming risk
+
+There is an established AI-agent developer product using the **AgentOps** name: [AgentOps.ai](https://www.agentops.ai/) and the [AgentOps-AI/agentops GitHub project](https://github.com/AgentOps-AI/agentops). It operates in the adjacent AI-agent observability and developer-platform category. This is a material discoverability and potential trademark-confusion risk, not a legal conclusion about ownership or infringement.
+
+Recommended response:
+
+- Keep the current GitHub repository slug if changing it would disrupt existing links, but do not assume the generic name is ownable.
+- Use a distinctive outward-facing product identity such as **Spunky Tech Agent Governance** or another counsel-cleared brand; treat “AgentOps” as a category descriptor rather than the sole brand.
+- Do not copy the other project's logo, visual identity, domain, package naming, or marketing language.
+- Before public commercial launch, perform trademark, company-name, domain, app-store, and package-registry clearance in target markets with qualified counsel.
+- Make README metadata and product pages explicit that this is a Spunky Tech project and is not affiliated with AgentOps-AI.
+
 ## Target customers
 
 1. **Independent developers and AI builders** who need reliable evaluation, approval gates, and worker execution without assembling multiple tools.
