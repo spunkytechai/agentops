@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 import subprocess
 import threading
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -41,6 +42,11 @@ class DockerWorker:
             or "\x00" in docker_executable
         ):
             raise ValueError("docker_executable must be non-empty and must not contain NUL bytes")
+        if (
+            isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(timeout_seconds) or timeout_seconds <= 0
+        ):
+            raise ValueError("timeout_seconds must be positive and finite")
         if isinstance(memory_limit_bytes, bool) or not isinstance(memory_limit_bytes, int) or memory_limit_bytes <= 0:
             raise ValueError("memory_limit_bytes must be a positive integer")
         if isinstance(pids_limit, bool) or not isinstance(pids_limit, int) or pids_limit <= 0:
@@ -53,7 +59,7 @@ class DockerWorker:
             raise ValueError("cpu_limit must be positive and finite")
         self.image = image
         self.docker_executable = docker_executable
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = float(timeout_seconds)
         self.max_input_bytes = max_input_bytes
         self.max_output_bytes = max_output_bytes
         self.memory_limit_bytes = memory_limit_bytes
@@ -76,18 +82,28 @@ class DockerWorker:
         ]
 
     def execute(self, tool_name: str, input: Any, *, request_id: str | None = None) -> Any:
-        if not self._slots.acquire(timeout=self.timeout_seconds):
-            raise WorkerExecutionError("worker concurrency wait deadline exceeded")
+        deadline = time.monotonic() + self.timeout_seconds
+        remaining = max(0.0, deadline - time.monotonic())
+        if not self._slots.acquire(timeout=remaining):
+            raise WorkerExecutionError("worker execution deadline exceeded while waiting for a concurrency slot")
         try:
-            return self._execute_one(tool_name, input, request_id=request_id)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise WorkerExecutionError("worker execution deadline exceeded while waiting for a concurrency slot")
+            return self._execute_one(
+                tool_name, input, request_id=request_id, timeout_seconds=remaining
+            )
         finally:
             self._slots.release()
 
-    def _execute_one(self, tool_name: str, input: Any, *, request_id: str | None = None) -> Any:
+    def _execute_one(
+        self, tool_name: str, input: Any, *, request_id: str | None = None,
+        timeout_seconds: float,
+    ) -> Any:
         container_name = f"agentops-worker-{uuid4().hex}"
         worker = WorkerProcess(
             [self.docker_executable, *self._run_args(container_name)],
-            timeout_seconds=self.timeout_seconds,
+            timeout_seconds=timeout_seconds,
             max_input_bytes=self.max_input_bytes,
             max_output_bytes=self.max_output_bytes,
         )

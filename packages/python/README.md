@@ -143,4 +143,4 @@ result = worker.execute("identity.echo", {"message": "hello"})
 
 The image must be preloaded locally. Each call starts a fresh non-root container with no network or host mounts, a read-only root filesystem, dropped capabilities, no-new-privileges, bounded CPU/memory/PIDs, and a restricted temporary filesystem. Protocol byte limits and deadlines remain active. The Docker daemon and host kernel remain trusted; this profile is not escape-proof.
 
-Each DockerWorker instance limits concurrent containers to four by default. Set `max_concurrent_workers` to tune the per-instance concurrency cap; calls waiting for a slot fail when the configured execution deadline expires. This is an in-process limit, not a cluster-wide quota.
+Each DockerWorker instance limits concurrent containers to four by default. Set `max_concurrent_workers` to tune the per-instance concurrency cap. The configured deadline covers both slot acquisition and worker execution; best-effort Docker cleanup may continue for up to five seconds after it expires. This is an in-process limit, not a cluster-wide quota.

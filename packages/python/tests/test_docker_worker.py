@@ -1,4 +1,7 @@
 import json
+import threading
+import time
+from unittest.mock import patch
 import os
 import sys
 import tempfile
@@ -71,10 +74,40 @@ class DockerWorkerTests(unittest.TestCase):
             DockerWorker("example/worker", cpu_limit=0)
         with self.assertRaises(ValueError):
             DockerWorker("example/worker", pids_limit=-1)
+        for invalid_timeout in (0, -1, float("nan"), float("inf"), True):
+            with self.subTest(timeout=invalid_timeout):
+                with self.assertRaises(ValueError):
+                    DockerWorker("example/worker", timeout_seconds=invalid_timeout)
         with self.assertRaises(ValueError):
             DockerWorker("example/worker\x00")
         with self.assertRaises(ValueError):
             DockerWorker("example/worker", docker_executable="docker\x00")
+
+    def test_slot_wait_consumes_the_same_overall_deadline_as_execution(self):
+        worker = DockerWorker("example/worker:latest", timeout_seconds=0.3, max_concurrent_workers=1)
+        started = threading.Event()
+
+        def fake_execute(tool_name, input, **kwargs):
+            if not started.is_set():
+                started.set()
+                time.sleep(0.15)
+            return {"ok": True}
+
+        with patch("agentops.docker_worker.WorkerProcess") as process:
+            process.return_value.execute.side_effect = fake_execute
+            first = threading.Thread(target=lambda: worker.execute("first", {}))
+            first.start()
+            self.assertTrue(started.wait(timeout=1))
+            time.sleep(0.05)
+            self.assertEqual(worker.execute("second", {}), {"ok": True})
+            first.join(timeout=1)
+            self.assertFalse(first.is_alive())
+            timeouts = [
+                call.kwargs["timeout_seconds"] for call in process.call_args_list
+            ]
+        self.assertEqual(len(timeouts), 2)
+        self.assertGreater(timeouts[0], 0.25)
+        self.assertLess(timeouts[1], timeouts[0] - 0.04)
 
     def test_cleans_up_container_after_worker_deadline(self):
         with tempfile.TemporaryDirectory() as directory:

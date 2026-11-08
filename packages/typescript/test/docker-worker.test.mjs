@@ -4,6 +4,7 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { DockerWorker, WorkerExecutionError } from "../dist/index.js";
+import { WorkerProcess } from "../dist/worker.js";
 
 async function createDockerStub(directory, { sleep = false } = {}) {
   const log = path.join(directory, "docker-args.jsonl");
@@ -66,8 +67,39 @@ test("rejects unsafe image references and resource configurations", () => {
   assert.throws(() => new DockerWorker("example/worker", { memoryLimitBytes: 0 }), TypeError);
   assert.throws(() => new DockerWorker("example/worker", { cpuLimit: 0 }), TypeError);
   assert.throws(() => new DockerWorker("example/worker", { pidsLimit: -1 }), TypeError);
+  assert.throws(() => new DockerWorker("example/worker", { timeoutMs: 0 }), TypeError);
+  assert.throws(() => new DockerWorker("example/worker", { timeoutMs: Number.NaN }), TypeError);
   assert.throws(() => new DockerWorker("example/worker\0"), TypeError);
   assert.throws(() => new DockerWorker("example/worker", { dockerExecutable: "docker\0" }), TypeError);
+});
+
+test("slot wait consumes the same overall deadline as execution", async () => {
+  const original = WorkerProcess.prototype.execute;
+  const observedTimeouts = [];
+  let signalStarted;
+  const started = new Promise(resolve => { signalStarted = resolve; });
+  WorkerProcess.prototype.execute = async function () {
+    observedTimeouts.push(this.timeoutMs);
+    if (observedTimeouts.length === 1) {
+      signalStarted();
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    return { ok: true };
+  };
+  try {
+    const worker = new DockerWorker("example/worker:latest", {
+      dockerExecutable: process.execPath, timeoutMs: 300, maxConcurrentWorkers: 1,
+    });
+    const first = worker.execute("first", {});
+    await started;
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const second = worker.execute("second", {});
+    assert.deepEqual(await Promise.all([first, second]), [{ ok: true }, { ok: true }]);
+    assert.equal(observedTimeouts.length, 2);
+    assert.ok(observedTimeouts[1] < observedTimeouts[0] - 40);
+  } finally {
+    WorkerProcess.prototype.execute = original;
+  }
 });
 
 test("removes the container after a worker deadline", async () => {
