@@ -1,4 +1,4 @@
-export { EvaluationCase, EvaluationSuite, ExactMatchMetric, NumericToleranceMetric, EvaluationRegressionError, compareEvaluations, type EvaluationMetric, type EvaluationCaseOptions, type EvaluationCaseResult, type EvaluationReport, type EvaluationSuiteOptions, type EvaluationRegression } from "./evaluation.js";
+export { EvaluationRunStoreError, InMemoryEvaluationRunStore, SqliteEvaluationRunStore, type EvaluationRun, type EvaluationRunStore } from "./evaluation-store.js";\nexport { EvaluationCase, EvaluationSuite, ExactMatchMetric, NumericToleranceMetric, EvaluationRegressionError, compareEvaluations, type EvaluationMetric, type EvaluationCaseOptions, type EvaluationCaseResult, type EvaluationReport, type EvaluationSuiteOptions, type EvaluationRegression } from "./evaluation.js";
 export { OtlpHttpSpanExporter, type OtlpHttpTransport, type OtlpHttpSpanExporterOptions } from "./otlp.js";
 export { InMemoryRecorder, TraceContext, type EventRecorder, type RunEvent, type ToolEventType, type TraceContextOptions } from "./observability.js";
 export {
