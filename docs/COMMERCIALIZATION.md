@@ -161,3 +161,7 @@ Do not use GitHub stars as the primary product-market-fit metric.
 - Document data processing, retention, deletion, residency, subprocess/container trust boundaries, and subprocessors before hosting customer data.
 - Keep customer data private; never use customer workloads as public demos without explicit written permission.
 - Obtain legal and tax advice for applicable jurisdictions before selling subscriptions or enterprise services.
+
+## Sponsorship
+
+Community and corporate sponsorship are separate from paid implementation services and future hosted subscriptions. Sponsorship supports open-source maintenance and does not purchase roadmap control or imply endorsement. See [Sponsor AgentOps](SPONSORSHIP.md) for proposed community tiers, corporate packages, recognition rules, and financial-handling safeguards.
