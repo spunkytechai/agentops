@@ -1,3 +1,4 @@
+from dataclasses import replace
 import json
 import threading
 import unittest
@@ -78,6 +79,18 @@ class OtlpHttpSpanExporterTests(unittest.TestCase):
             error_type="SensitiveErrorName",
         ))
         self.assertEqual(exporter.dropped_spans, 2)
+        self.assertEqual(exporter.flush(), 0)
+
+    def test_drops_events_with_invalid_trace_identifiers(self):
+        exporter = OtlpHttpSpanExporter(
+            "http://collector:4318", lambda url, headers, body: None
+        )
+        invalid = replace(
+            self.event("tool.started", "2026-11-08T00:00:00"),
+            trace_id="x" * 10_000,
+        )
+        exporter.record(invalid)
+        self.assertEqual(exporter.dropped_spans, 1)
         self.assertEqual(exporter.flush(), 0)
 
     def test_failed_export_retains_batch_for_retry_and_bounds_pending_spans(self):
