@@ -167,8 +167,17 @@ class InMemoryEvaluationRunStore:
 
     def _timestamp(self) -> int:
         value = self._clock()
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0 or value > 9_007_199_254_740_991:
-            raise EvaluationRunStoreError("clock must return a non-negative finite millisecond timestamp")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or value < 0
+            or value > 9_007_199_254_740_991
+            or (
+                isinstance(value, float)
+                and (not math.isfinite(value) or not value.is_integer())
+            )
+        ):
+            raise EvaluationRunStoreError("clock must return a non-negative safe integer millisecond timestamp")
         return int(value)
 
 
@@ -253,8 +262,17 @@ class SqliteEvaluationRunStore:
 
     def _timestamp(self) -> int:
         value = self._clock()
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
-            raise EvaluationRunStoreError("clock must return a non-negative finite millisecond timestamp")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or value < 0
+            or value > 9_007_199_254_740_991
+            or (
+                isinstance(value, float)
+                and (not math.isfinite(value) or not value.is_integer())
+            )
+        ):
+            raise EvaluationRunStoreError("clock must return a non-negative safe integer millisecond timestamp")
         return int(value)
 
     @staticmethod
