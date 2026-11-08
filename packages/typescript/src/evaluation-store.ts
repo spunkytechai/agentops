@@ -144,9 +144,16 @@ export class SqliteEvaluationRunStore implements EvaluationRunStore {
     identity(report.suiteName, "suiteName");
     const createdAtMs = this.timestamp();
     const payload = encode(report);
-    this.database.prepare("INSERT INTO agentops_evaluation_runs (run_id, suite_name, created_at_ms, report_json) VALUES (?, ?, ?, ?)").run(
-      runId, report.suiteName, createdAtMs, payload,
-    );
+    try {
+      this.database.prepare("INSERT INTO agentops_evaluation_runs (run_id, suite_name, created_at_ms, report_json) VALUES (?, ?, ?, ?)").run(
+        runId, report.suiteName, createdAtMs, payload,
+      );
+    } catch (error) {
+      if (error instanceof Error && /UNIQUE|PRIMARY KEY|constraint/i.test(error.message)) {
+        throw new EvaluationRunStoreError("evaluation run already exists");
+      }
+      throw error;
+    }
     return run(runId, report.suiteName, createdAtMs, decode(payload));
   }
   get(runId: string): EvaluationRun | undefined {
