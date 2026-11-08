@@ -74,7 +74,7 @@ class EvaluationEngineTests(unittest.TestCase):
             return value
 
         asyncio.run(suite.run_async(operation))
-        self.assertEqual(case.expected, expected)
+        self.assertEqual(case.expected, {"nested": {"value": 7}})
 
     def test_case_exceptions_are_recorded_without_error_messages(self):
         suite = EvaluationSuite("errors", (EvaluationCase("boom", "input", "expected"),))
