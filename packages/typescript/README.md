@@ -90,3 +90,19 @@ console.log(result, recorder.events.map((event) => event.type));
 ```
 
 The operation receives an `AbortSignal`. Propagate it to cancellable APIs; otherwise, timed-out work may continue in the background. The default recorder excludes arguments, results, prompts, and credentials.
+
+## Evaluation
+
+```ts
+import { EvaluationCase, EvaluationSuite, ExactMatchMetric, compareEvaluations } from "@spunkytech/agentops";
+
+const suite = new EvaluationSuite("answer-quality", [
+  new EvaluationCase("greeting", { prompt: "hello" }, "Hello!", { weight: 2 }),
+], { metric: new ExactMatchMetric() });
+const report = await suite.run(async (item) => "Hello!");
+console.log(report.weightedScore, report.passRate);
+// Compare a later report with a stored baseline:
+// const regression = compareEvaluations(baseline, report, 0.02);
+```
+
+Use `NumericToleranceMetric(0.5)` for numeric outputs. Evaluation cases run sequentially; dataset storage, model-provider calls, and baseline persistence remain host responsibilities.
