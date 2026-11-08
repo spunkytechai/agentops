@@ -58,7 +58,7 @@ The default recorder stores tool name, run ID, event type, timestamp, duration, 
 ## Planned evolution
 - transactional server-database adapters for approval and registry stores;
 - distributed identity and approval scopes;
-- OpenTelemetry-compatible exporters;
+- OpenTelemetry SDK integration, sampling, and automatic instrumentation;
 - evaluation datasets and deterministic replay;
 - isolated worker adapters and resource budgets.
 
