@@ -1,5 +1,17 @@
 /** Deterministic, provider-neutral evaluation and regression primitives. */
 
+function freezeJson<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>)) freezeJson(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+function cloneJson(value: unknown): unknown {
+  return JSON.parse(canonicalJson(value)) as unknown;
+}
+
 function canonicalJson(value: unknown): string {
   const normalize = (item: unknown): unknown => {
     if (item === null || typeof item === "string" || typeof item === "boolean") return item;
@@ -48,8 +60,8 @@ export class EvaluationCase {
       throw new TypeError("weight must be a positive finite number");
     }
     this.caseId = caseId;
-    this.input = JSON.parse(canonicalJson(input)) as unknown;
-    this.expected = JSON.parse(canonicalJson(expected)) as unknown;
+    this.input = freezeJson(JSON.parse(canonicalJson(input)) as unknown);
+    this.expected = freezeJson(JSON.parse(canonicalJson(expected)) as unknown);
     this.weight = weight;
     Object.freeze(this);
   }
@@ -140,7 +152,7 @@ export class EvaluationSuite {
     for (const item of this.cases) {
       let actual: unknown;
       try {
-        actual = await operation(item.input);
+        actual = await operation(cloneJson(item.input));
       } catch (error) {
         results.push({
           caseId: item.caseId,
@@ -150,7 +162,7 @@ export class EvaluationSuite {
         });
         continue;
       }
-      const score = this.metric.score(item.expected, actual);
+      const score = this.metric.score(cloneJson(item.expected), actual);
       if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 1) {
         throw new TypeError("metric score must be finite and between 0 and 1");
       }
