@@ -52,6 +52,11 @@ class EvaluationRunStoreTests(unittest.TestCase):
             reopened = SqliteEvaluationRunStore(database)
             self.assertEqual(reopened.get("durable-1"), saved)
             self.assertEqual(reopened.get_baseline("support-quality"), saved)
+            replacement = reopened.save(self.report, run_id="durable-2")
+            reopened.set_baseline("support-quality", "durable-2")
+            self.assertEqual(reopened.get_baseline("support-quality"), replacement)
+            with self.assertRaises(EvaluationRunStoreError):
+                reopened.save(self.report, run_id="durable-2")
             reopened.close()
 
     def test_sqlite_baseline_update_is_suite_bound(self):
