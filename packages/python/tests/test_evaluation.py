@@ -73,7 +73,7 @@ class EvaluationEngineTests(unittest.TestCase):
     def test_invalid_case_weights_and_metric_scores_are_rejected(self):
         with self.assertRaises(ValueError):
             EvaluationCase("bad", 1, 1, weight=0)
-        suite = EvaluationSuite("bad-metric", (EvaluationCase("a", 1, 1),), metric=type("InvalidMetric", (), {"name": "invalid", "score": lambda self, *_: 2})())
+        class InvalidMetric:\n            name = "invalid"\n\n            def score(self, _expected, _actual):\n                return 2\n\n        suite = EvaluationSuite("bad-metric", (EvaluationCase("a", 1, 1),), metric=InvalidMetric())
         with self.assertRaises(ValueError):
             suite.run(lambda x: x)
 
