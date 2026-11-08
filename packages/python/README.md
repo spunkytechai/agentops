@@ -43,7 +43,24 @@ result = executor.execute(
 
 If omitted, the executor creates a trace and span ID. Export completed tool spans using an injected HTTP transport:
 
-\n```python\nimport urllib.request\nfrom agentops import OtlpHttpSpanExporter\n\ndef send_otlp(url, headers, body):\n    request = urllib.request.Request(url, data=body.encode(), headers=dict(headers), method="POST")\n    with urllib.request.urlopen(request, timeout=5) as response:\n        if not 200 <= response.status < 300:\n            raise RuntimeError(f"OTLP collector returned {response.status}")\n\nexporter = OtlpHttpSpanExporter("http://localhost:4318", send_otlp)\n# Pass exporter as ToolExecutor's recorder, then flush from a worker/shutdown hook.\nexecutor = ToolExecutor(policy, exporter)\n# exporter.flush()\n```\n\nUse `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persist immutable agent versions across restarts. The composite key rejects duplicate `(agent_id, version)` pairs. Close the store during application shutdown.
+
+```python
+import urllib.request
+from agentops import OtlpHttpSpanExporter
+
+def send_otlp(url, headers, body):
+    request = urllib.request.Request(url, data=body.encode(), headers=dict(headers), method="POST")
+    with urllib.request.urlopen(request, timeout=5) as response:
+        if not 200 <= response.status < 300:
+            raise RuntimeError(f"OTLP collector returned {response.status}")
+
+exporter = OtlpHttpSpanExporter("http://localhost:4318", send_otlp)
+# Pass exporter as ToolExecutor's recorder, then flush from a worker/shutdown hook.
+executor = ToolExecutor(policy, exporter)
+# exporter.flush()
+```
+
+Use `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persist immutable agent versions across restarts. The composite key rejects duplicate `(agent_id, version)` pairs. Close the store during application shutdown.
 
 Use `ApprovalManager(store=SqliteApprovalStore("agentops.sqlite3"))` to persist approval requests across restarts. Close the store during application shutdown. Use a shared SQLite file only on storage with reliable SQLite locking.
 
