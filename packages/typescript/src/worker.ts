@@ -174,7 +174,7 @@ export class WorkerProcess {
           return;
         }
         let response: unknown;
-        try { response = JSON.parse(output.subarray(0, -1).toString("utf8")); }
+        try { response = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(output.subarray(0, -1))); }
         catch { reject(new WorkerExecutionError("worker returned invalid JSON")); return; }
         if (typeof response !== "object" || response === null ||
             (response as Record<string, unknown>).protocol_version !== 1 ||
