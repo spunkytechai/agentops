@@ -1,9 +1,21 @@
+import multiprocessing
 import tempfile
+import time
 import threading
 import unittest
 from pathlib import Path
 
 from agentops import ApprovalManager, ApprovalRequiredError, SqliteApprovalStore
+
+
+def _consume_approval_in_process(database, request_id, barrier, results):
+    store = SqliteApprovalStore(database, timeout_seconds=5)
+    barrier.wait(timeout=10)
+    consumed = store.consume(
+        request_id, "user-17", "files.delete", None, time.time()
+    )
+    results.put("consumed" if consumed is not None else "rejected")
+    store.close()
 
 
 class SqliteApprovalStoreTests(unittest.TestCase):
@@ -61,6 +73,34 @@ class SqliteApprovalStoreTests(unittest.TestCase):
             thread.join()
 
         self.assertCountEqual(outcomes, ["consumed", "rejected"])
+
+    def test_separate_processes_cannot_consume_the_same_approval(self):
+        setup = ApprovalManager(store=SqliteApprovalStore(self.path))
+        request = setup.request("user-17", "files.delete", "Delete archive")
+        setup.approve(request.request_id, approver_id="admin-1")
+        setup.store.close()
+
+        context = multiprocessing.get_context("spawn")
+        barrier = context.Barrier(2)
+        results = context.Queue()
+        processes = [
+            context.Process(
+                target=_consume_approval_in_process,
+                args=(self.path, request.request_id, barrier, results),
+            )
+            for _ in range(2)
+        ]
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join(timeout=10)
+        self.assertTrue(all(process.exitcode == 0 for process in processes))
+        self.assertCountEqual(
+            [results.get(timeout=5) for _ in processes], ["consumed", "rejected"]
+        )
+        for process in processes:
+            process.close()
+        results.close()
 
     def test_expiry_is_enforced_after_reopening_store(self):
         now = [100.0]
