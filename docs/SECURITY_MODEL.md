@@ -57,8 +57,11 @@
 - Trace IDs, span IDs, and parent-span IDs are correlation metadata, not authentication credentials or authorization claims.
 - Both SDKs validate non-zero lowercase hexadecimal identifiers using W3C Trace Context identifier widths.
 - Trace context is caller-controlled when explicitly supplied. Do not treat it as proof of caller identity or trust it across an untrusted boundary without validation and context replacement at the host boundary.
-- Events contain operational metadata only; the SDK does not automatically export telemetry or redact arbitrary custom data supplied by a host exporter.
-- This release does not implement OTLP transport, traceparent parsing, sampling, or a complete OpenTelemetry SDK.
+- The OTLP/HTTP JSON exporter serializes only an explicit allowlist: run ID, tool name, status, duration, and error class. Prompts, tool arguments, results, exception messages, arbitrary event metadata, and credentials are excluded.
+- The exporter uses an injected transport and adds no mandatory networking or OpenTelemetry SDK dependency. The host transport owns TLS, authentication, timeout, and response validation.
+- Pending and completed spans are bounded; overflow increments a dropped-span counter. Failed batches are retained and retried up to the configured attempt limit; if all attempts fail, `flush()` raises and leaves the batch queued.
+- Python `flush()` is synchronous; TypeScript `flush()` is asynchronous. Run flushing in a worker or controlled shutdown hook, not on a latency-sensitive execution path.
+- This release does not implement automatic instrumentation, metrics, logs, sampling, `traceparent` header parsing, or a complete OpenTelemetry SDK.
 
 ## Limitations
 The initial SDK is not a process sandbox, secret manager, network firewall, prompt-injection detector, model-output validator, or distributed audit log. An allow-list does not replace least-privilege credentials or infrastructure isolation.

@@ -41,7 +41,25 @@ result = executor.execute(
 )
 ```
 
-If omitted, the executor creates a trace and span ID. The context is W3C Trace Context identifier-compatible, but the SDK does not currently parse or emit `traceparent` headers or export OTLP.
+If omitted, the executor creates a trace and span ID. Export completed tool spans using an injected HTTP transport:
+
+
+```python
+import urllib.request
+from agentops import OtlpHttpSpanExporter, ToolExecutor, ToolPolicy
+
+def send_otlp(url, headers, body):
+    request = urllib.request.Request(url, data=body.encode(), headers=dict(headers), method="POST")
+    with urllib.request.urlopen(request, timeout=5) as response:
+        if not 200 <= response.status < 300:
+            raise RuntimeError(f"OTLP collector returned {response.status}")
+
+exporter = OtlpHttpSpanExporter("http://localhost:4318", send_otlp)
+policy = ToolPolicy(frozenset({"reports.read"}))
+executor = ToolExecutor(policy, exporter)
+# Flush from a worker or controlled shutdown hook.
+exporter.flush()
+```
 
 Use `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persist immutable agent versions across restarts. The composite key rejects duplicate `(agent_id, version)` pairs. Close the store during application shutdown.
 

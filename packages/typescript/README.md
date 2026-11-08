@@ -51,7 +51,19 @@ await executor.execute("reports.read", fetchReport, "report-run-1", {
 });
 ```
 
-When omitted, the executor creates trace and span identifiers. This provides W3C Trace Context-compatible identifiers, not `traceparent` parsing or OTLP export.
+When omitted, the executor creates trace and span identifiers. Export completed tool spans using an injected asynchronous HTTP transport:
+
+
+```ts
+import { OtlpHttpSpanExporter, ToolExecutor } from "@spunkytech/agentops";
+
+const exporter = new OtlpHttpSpanExporter("http://localhost:4318", async (url, headers, body) => {
+  const response = await fetch(url, { method: "POST", headers, body });
+  if (!response.ok) throw new Error("OTLP collector returned " + response.status);
+});
+const executor = new ToolExecutor(policy, exporter);
+// Await exporter.flush() from a worker or controlled shutdown hook.
+```
 
 ## Example
 ```ts

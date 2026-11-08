@@ -58,6 +58,14 @@ The default recorder stores tool name, run ID, event type, timestamp, duration, 
 ## Planned evolution
 - transactional server-database adapters for approval and registry stores;
 - distributed identity and approval scopes;
-- OpenTelemetry-compatible exporters;
+- OpenTelemetry SDK integration, sampling, and automatic instrumentation;
 - evaluation datasets and deterministic replay;
 - isolated worker adapters and resource budgets.
+
+## OTLP trace export
+
+`OtlpHttpSpanExporter` is an `EventRecorder` implementation in both SDKs. It pairs a `tool.started` event with its matching terminal event and emits one completed span in an OTLP/HTTP JSON `ExportTraceServiceRequest` payload at `/v1/traces`. The payload uses `resourceSpans`, `scopeSpans`, and OTLP span fields; 64-bit nanosecond timestamps are decimal strings and span kind/status enums are integer values.
+
+The exporter accepts an injected HTTP transport (synchronous in Python, asynchronous in TypeScript), sets `Content-Type: application/json`, bounds pending and completed spans, batches requests, and retries failed batches. A failed batch remains queued and `flush()` raises the transport error; callers should retry from a controlled worker or shutdown hook. The transport is responsible for actual HTTP behavior, TLS, authentication headers, timeouts, and response validation.
+
+The exporter emits only run ID, tool name, status, duration, and error class attributes. It does not serialize prompts, arguments, results, exception messages, arbitrary event metadata, or credentials. Queue overflow is observable through `dropped_spans` / `droppedSpans`. This is an exporter, not a complete OpenTelemetry SDK or an automatic instrumentation layer.
