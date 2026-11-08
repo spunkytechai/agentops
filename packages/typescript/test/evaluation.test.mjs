@@ -88,9 +88,10 @@ test("shared conformance fixture matches TypeScript results", async () => {
   const cases = fixture.cases.map((item) => new EvaluationCase(
     item.id, item.input, item.expected, { weight: item.weight },
   ));
+  let index = 0;
   const report = await new EvaluationSuite(fixture.suite, cases, {
     passThreshold: fixture.pass_threshold,
-  }).run(async (input) => fixture.cases.find((item) => JSON.stringify(item.input) === JSON.stringify(input)).actual);
+  }).run(async () => fixture.cases[index++].actual);
   assert.equal(report.totalCases, fixture.expected.total_cases);
   assert.equal(report.passedCases, fixture.expected.passed_cases);
   assert.equal(report.failedCases, fixture.expected.failed_cases);
