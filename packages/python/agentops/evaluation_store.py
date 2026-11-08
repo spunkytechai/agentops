@@ -63,6 +63,20 @@ def _encode(report: EvaluationReport) -> str:
 def _decode(value: str) -> EvaluationReport:
     try:
         data = json.loads(value)
+        if (
+            not isinstance(data["suite_name"], str)
+            or any(isinstance(data[key], bool) or not isinstance(data[key], int) for key in (
+                "total_cases", "passed_cases", "failed_cases"
+            ))
+            or isinstance(data["weighted_score"], bool)
+            or not isinstance(data["weighted_score"], (int, float))
+            or not math.isfinite(data["weighted_score"])
+            or isinstance(data["pass_rate"], bool)
+            or not isinstance(data["pass_rate"], (int, float))
+            or not math.isfinite(data["pass_rate"])
+            or not isinstance(data["case_results"], list)
+        ):
+            raise ValueError("invalid report fields")
         results = tuple(EvaluationCaseResult(
             case_id=item["case_id"], score=float(item["score"]),
             passed=item["passed"], error_type=item.get("error_type"),
@@ -75,6 +89,13 @@ def _decode(value: str) -> EvaluationReport:
         )
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise EvaluationRunStoreError("stored evaluation report is invalid") from exc
+    if (report.total_cases != len(results) or report.passed_cases + report.failed_cases != report.total_cases
+            or not 0 <= report.weighted_score <= 1 or not 0 <= report.pass_rate <= 1
+            or any(not isinstance(item.case_id, str) or not isinstance(item.passed, bool)
+                   or not 0 <= item.score <= 1
+                   or (item.error_type is not None and not isinstance(item.error_type, str))
+                   for item in results)):
+        raise EvaluationRunStoreError("stored evaluation report values are invalid")
     if report.total_cases != len(results) or report.passed_cases + report.failed_cases != report.total_cases:
         raise EvaluationRunStoreError("stored evaluation report counts are inconsistent")
     return report
@@ -90,7 +111,7 @@ class InMemoryEvaluationRunStore:
         self._lock = RLock()
 
     def save(self, report: EvaluationReport, run_id: str | None = None) -> EvaluationRun:
-        identifier = run_id or str(uuid4())
+        identifier = str(uuid4()) if run_id is None else run_id
         _identity(identifier, "run_id")
         _identity(report.suite_name, "suite_name")
         payload = _encode(report)
@@ -122,7 +143,7 @@ class InMemoryEvaluationRunStore:
 
     def _timestamp(self) -> int:
         value = self._clock()
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0 or value > 9_007_199_254_740_991:
             raise EvaluationRunStoreError("clock must return a non-negative finite millisecond timestamp")
         return int(value)
 
@@ -164,10 +185,13 @@ class SqliteEvaluationRunStore:
         payload = _encode(report)
         timestamp = self._timestamp()
         with self._lock:
-            self._connection.execute(
-                "INSERT INTO agentops_evaluation_runs (run_id, suite_name, created_at_ms, report_json) VALUES (?, ?, ?, ?)",
-                (identifier, report.suite_name, timestamp, payload),
-            )
+            try:
+                self._connection.execute(
+                    "INSERT INTO agentops_evaluation_runs (run_id, suite_name, created_at_ms, report_json) VALUES (?, ?, ?, ?)",
+                    (identifier, report.suite_name, timestamp, payload),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise EvaluationRunStoreError("evaluation run already exists") from exc
         return EvaluationRun(identifier, report.suite_name, timestamp, _decode(payload))
 
     def get(self, run_id: str) -> EvaluationRun | None:
