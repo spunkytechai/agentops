@@ -3,7 +3,8 @@ import unittest\nimport json\nfrom pathlib import Path
 from agentops import (
     EvaluationCase,
     EvaluationRegressionError,
-    EvaluationSuite,\n    EvaluationMetric,
+    EvaluationSuite,
+    NumericToleranceMetric,\n    EvaluationMetric,
     ExactMatchMetric,
     compare_evaluations,
 )
@@ -29,6 +30,18 @@ class EvaluationEngineTests(unittest.TestCase):
         self.assertEqual([item.case_id for item in report.case_results], [
             "same", "same-json", "different"
         ])
+
+    def test_numeric_tolerance_metric_scores_within_and_outside_boundary(self):
+        from agentops import NumericToleranceMetric
+        metric = NumericToleranceMetric(0.5)
+        self.assertEqual(metric.score(10, 10.5), 1.0)
+        self.assertEqual(metric.score(10, 10.5001), 0.0)
+        self.assertEqual(metric.score(True, 1), 0.0)
+
+    def test_exact_match_uses_json_semantics_for_numbers_and_booleans(self):
+        metric = ExactMatchMetric()
+        self.assertEqual(metric.score(1, 1.0), 1.0)
+        self.assertEqual(metric.score(True, 1), 0.0)
 
     def test_case_exceptions_are_recorded_without_error_messages(self):
         suite = EvaluationSuite("errors", (EvaluationCase("boom", "input", "expected"),))
