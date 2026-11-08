@@ -144,9 +144,10 @@ export class SqliteEvaluationRunStore implements EvaluationRunStore {
     identity(report.suiteName, "suiteName");
     const createdAtMs = this.timestamp();
     const payload = encode(report);
+    const validatedReport = decode(payload);
     try {
       this.database.prepare("INSERT INTO agentops_evaluation_runs (run_id, suite_name, created_at_ms, report_json) VALUES (?, ?, ?, ?)").run(
-        runId, report.suiteName, createdAtMs, payload,
+        runId, validatedReport.suiteName, createdAtMs, payload,
       );
     } catch (error) {
       if (error instanceof Error && /UNIQUE|PRIMARY KEY|constraint/i.test(error.message)) {
@@ -154,7 +155,7 @@ export class SqliteEvaluationRunStore implements EvaluationRunStore {
       }
       throw error;
     }
-    return run(runId, report.suiteName, createdAtMs, decode(payload));
+    return run(runId, validatedReport.suiteName, createdAtMs, validatedReport);
   }
   get(runId: string): EvaluationRun | undefined {
     const row = this.database.prepare("SELECT * FROM agentops_evaluation_runs WHERE run_id = ?").get(runId);
