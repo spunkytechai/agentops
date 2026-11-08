@@ -251,7 +251,7 @@ worker = DockerWorker(
     timeout_seconds=10,
     memory_limit_bytes=512 * 1024 * 1024,
     cpu_limit=1.5,
-  max_concurrent_workers=4,
+    max_concurrent_workers=4,
     pids_limit=32,
 )
 result = worker.execute("identity.echo", {"message": "hello"})
