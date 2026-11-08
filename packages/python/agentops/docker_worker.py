@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import subprocess
+import threading
 from typing import Any
 from uuid import uuid4
 
@@ -28,6 +29,7 @@ class DockerWorker:
         cpu_limit: float = 1.0,
         pids_limit: int = 64,
         tmpfs_size_bytes: int = 16_777_216,
+        max_concurrent_workers: int = 4,
     ) -> None:
         if not isinstance(image, str) or not image or image.startswith("-") or any(ch.isspace() for ch in image):
             raise ValueError("image must be a non-empty Docker image reference without whitespace")
@@ -39,6 +41,8 @@ class DockerWorker:
             raise ValueError("pids_limit must be a positive integer")
         if isinstance(tmpfs_size_bytes, bool) or not isinstance(tmpfs_size_bytes, int) or tmpfs_size_bytes <= 0:
             raise ValueError("tmpfs_size_bytes must be a positive integer")
+        if isinstance(max_concurrent_workers, bool) or not isinstance(max_concurrent_workers, int) or max_concurrent_workers <= 0:
+            raise ValueError("max_concurrent_workers must be a positive integer")
         if isinstance(cpu_limit, bool) or not isinstance(cpu_limit, (int, float)) or not math.isfinite(cpu_limit) or cpu_limit <= 0:
             raise ValueError("cpu_limit must be positive and finite")
         self.image = image
@@ -50,6 +54,8 @@ class DockerWorker:
         self.cpu_limit = float(cpu_limit)
         self.pids_limit = pids_limit
         self.tmpfs_size_bytes = tmpfs_size_bytes
+        self.max_concurrent_workers = max_concurrent_workers
+        self._slots = threading.BoundedSemaphore(max_concurrent_workers)
 
     def _run_args(self, container_name: str) -> list[str]:
         return [
@@ -64,6 +70,14 @@ class DockerWorker:
         ]
 
     def execute(self, tool_name: str, input: Any, *, request_id: str | None = None) -> Any:
+        if not self._slots.acquire(timeout=self.timeout_seconds):
+            raise WorkerExecutionError("worker concurrency wait deadline exceeded")
+        try:
+            return self._execute_one(tool_name, input, request_id=request_id)
+        finally:
+            self._slots.release()
+
+    def _execute_one(self, tool_name: str, input: Any, *, request_id: str | None = None) -> Any:
         container_name = f"agentops-worker-{uuid4().hex}"
         worker = WorkerProcess(
             [self.docker_executable, *self._run_args(container_name)],
