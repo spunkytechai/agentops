@@ -4,6 +4,7 @@ import {
   EvaluationCase,
   EvaluationRegressionError,
   EvaluationSuite,
+  NumericToleranceMetric,
   ExactMatchMetric,
   compareEvaluations,
 } from "../dist/index.js";
@@ -21,6 +22,19 @@ test("suite scores weighted cases and reports pass rate", async () => {
   assert.equal(report.weightedScore, 0.75);
   assert.equal(report.passRate, 2 / 3);
   assert.deepEqual(report.caseResults.map((item) => item.caseId), ["same", "same-json", "different"]);
+});
+
+test("numeric tolerance metric scores within and outside boundary", () => {
+  const metric = new NumericToleranceMetric(0.5);
+  assert.equal(metric.score(10, 10.5), 1);
+  assert.equal(metric.score(10, 10.5001), 0);
+  assert.equal(metric.score(true, 1), 0);
+});
+
+test("exact match uses JSON semantics for numbers and booleans", () => {
+  const metric = new ExactMatchMetric();
+  assert.equal(metric.score(1, 1.0), 1);
+  assert.equal(metric.score(true, 1), 0);
 });
 
 test("case exceptions are recorded without exposing error messages", async () => {
