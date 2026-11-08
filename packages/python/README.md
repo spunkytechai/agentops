@@ -46,7 +46,7 @@ If omitted, the executor creates a trace and span ID. Export completed tool span
 
 ```python
 import urllib.request
-from agentops import OtlpHttpSpanExporter
+from agentops import OtlpHttpSpanExporter, ToolExecutor, ToolPolicy
 
 def send_otlp(url, headers, body):
     request = urllib.request.Request(url, data=body.encode(), headers=dict(headers), method="POST")
@@ -55,9 +55,10 @@ def send_otlp(url, headers, body):
             raise RuntimeError(f"OTLP collector returned {response.status}")
 
 exporter = OtlpHttpSpanExporter("http://localhost:4318", send_otlp)
-# Pass exporter as ToolExecutor's recorder, then flush from a worker/shutdown hook.
+policy = ToolPolicy(frozenset({"reports.read"}))
 executor = ToolExecutor(policy, exporter)
-# exporter.flush()
+# Flush from a worker or controlled shutdown hook.
+exporter.flush()
 ```
 
 Use `AgentRegistry(store=SqliteAgentRegistryStore("agentops.sqlite3"))` to persist immutable agent versions across restarts. The composite key rejects duplicate `(agent_id, version)` pairs. Close the store during application shutdown.
