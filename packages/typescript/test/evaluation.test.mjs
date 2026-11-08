@@ -1,5 +1,5 @@
 import test from "node:test";
-import assert from "node:assert/strict";
+import assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";
 import {
   EvaluationCase,
   EvaluationRegressionError,
@@ -48,6 +48,21 @@ test("regression comparison rejects reports with different case sets", async () 
   const a = await new EvaluationSuite("same", [new EvaluationCase("a", 1, 1)]).run(async (x) => x);
   const b = await new EvaluationSuite("same", [new EvaluationCase("b", 1, 1)]).run(async (x) => x);
   assert.throws(() => compareEvaluations(a, b), EvaluationRegressionError);
+});
+
+test("shared conformance fixture matches TypeScript results", async () => {
+  const fixture = JSON.parse(readFileSync("../../conformance/fixtures/evaluations.json", "utf8"));
+  const cases = fixture.cases.map((item) => new EvaluationCase(
+    item.id, item.input, item.expected, { weight: item.weight },
+  ));
+  const report = await new EvaluationSuite(fixture.suite, cases, {
+    passThreshold: fixture.pass_threshold,
+  }).run(async (input) => fixture.cases.find((item) => JSON.stringify(item.input) === JSON.stringify(input)).actual);
+  assert.equal(report.totalCases, fixture.expected.total_cases);
+  assert.equal(report.passedCases, fixture.expected.passed_cases);
+  assert.equal(report.failedCases, fixture.expected.failed_cases);
+  assert.equal(report.weightedScore, fixture.expected.weighted_score);
+  assert.equal(report.passRate, fixture.expected.pass_rate);
 });
 
 test("invalid case weights and metric scores are rejected", async () => {
