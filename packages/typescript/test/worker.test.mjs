@@ -42,6 +42,13 @@ test("terminates worker at its deadline", async () => {
   await assert.rejects(worker.execute("tool", {}), WorkerExecutionError);
 });
 
+test("rejects malformed UTF-8 in worker responses", async () => {
+  const worker = new WorkerProcess(process.execPath, ["-e",
+    "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const r=JSON.parse(s);const b=Buffer.from(JSON.stringify({protocol_version:1,request_id:r.request_id,result:'x'}));const i=b.indexOf(Buffer.from('\\\"x\\\"'));b[i+1]=255;process.stdout.write(Buffer.concat([b,Buffer.from('\\\\n')]))})"
+  ]);
+  await assert.rejects(worker.execute("tool", {}), WorkerExecutionError);
+});
+
 test("rejects protocol version and request ID mismatch", async () => {
   const worker = new WorkerProcess(process.execPath, ["-e",
     "process.stdin.resume();process.stdin.on('end',()=>process.stdout.write(JSON.stringify({protocol_version:99,request_id:'wrong',result:1})+'\\n'))"
