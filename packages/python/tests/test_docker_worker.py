@@ -71,6 +71,10 @@ class DockerWorkerTests(unittest.TestCase):
             DockerWorker("example/worker", cpu_limit=0)
         with self.assertRaises(ValueError):
             DockerWorker("example/worker", pids_limit=-1)
+        with self.assertRaises(ValueError):
+            DockerWorker("example/worker\\x00")
+        with self.assertRaises(ValueError):
+            DockerWorker("example/worker", docker_executable="docker\\x00")
 
     def test_cleans_up_container_after_worker_deadline(self):
         with tempfile.TemporaryDirectory() as directory:
