@@ -305,6 +305,10 @@ This is a hardened Docker profile, not an escape-proof boundary. The Docker daem
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to participate and [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
+## Commercial adoption
+
+The AgentOps SDKs and core runtime remain open source under Apache-2.0. Commercial opportunities are planned around implementation, hosted operations, enterprise support, and training; hosted and paid features are not yet available. See [Commercialization Strategy](docs/COMMERCIALIZATION.md) and the [Product and Release Roadmap](docs/RELEASE_ROADMAP.md).
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
