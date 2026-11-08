@@ -74,6 +74,10 @@ class DockerWorkerTests(unittest.TestCase):
             DockerWorker("example/worker", cpu_limit=0)
         with self.assertRaises(ValueError):
             DockerWorker("example/worker", pids_limit=-1)
+        for invalid_timeout in (0, -1, float("nan"), float("inf"), True):
+            with self.subTest(timeout=invalid_timeout):
+                with self.assertRaises(ValueError):
+                    DockerWorker("example/worker", timeout_seconds=invalid_timeout)
         with self.assertRaises(ValueError):
             DockerWorker("example/worker\x00")
         with self.assertRaises(ValueError):
