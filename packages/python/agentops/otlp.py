@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import OrderedDict, deque
 from datetime import datetime, timezone
 import json
+from threading import RLock
 from typing import Callable, Mapping
 from urllib.parse import urlsplit
 
@@ -45,24 +46,26 @@ class OtlpHttpSpanExporter:
         self._pending: OrderedDict[tuple[str, str], RunEvent] = OrderedDict()
         self._queue: deque[dict[str, object]] = deque()
         self.dropped_spans = 0
+        self._lock = RLock()
 
     def record(self, event: RunEvent) -> None:
-        if event.trace_id is None or event.span_id is None:
-            return
-        key = (event.trace_id, event.span_id)
-        if event.event_type == "tool.started":
-            if len(self._pending) + len(self._queue) >= self._max_queue_size:
+        with self._lock:
+            if event.trace_id is None or event.span_id is None:
+                return
+            key = (event.trace_id, event.span_id)
+            if event.event_type == "tool.started":
+                if len(self._pending) + len(self._queue) >= self._max_queue_size:
+                    self.dropped_spans += 1
+                    return
+                self._pending[key] = event
+                return
+            started = self._pending.pop(key, None)
+            if started is None:
+                return
+            if len(self._queue) >= self._max_queue_size:
                 self.dropped_spans += 1
                 return
-            self._pending[key] = event
-            return
-        started = self._pending.pop(key, None)
-        if started is None:
-            return
-        if len(self._queue) >= self._max_queue_size:
-            self.dropped_spans += 1
-            return
-        self._queue.append(self._span(started, event))
+            self._queue.append(self._span(started, event))
 
     @staticmethod
     def _unix_nano(value: datetime) -> str:
@@ -107,6 +110,11 @@ class OtlpHttpSpanExporter:
         return span
 
     def flush(self) -> int:
+        """Flush queued spans serially; concurrent record/flush calls are thread-safe."""
+        with self._lock:
+            return self._flush_locked()
+
+    def _flush_locked(self) -> int:
         exported = 0
         while self._queue:
             batch = [self._queue.popleft() for _ in range(min(len(self._queue), self._max_batch_size))]
