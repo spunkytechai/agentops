@@ -43,7 +43,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     } catch {
       throw new TypeError("endpoint must be an absolute HTTP or HTTPS URL");
     }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.search || parsed.hash) {
       throw new TypeError("endpoint must be an absolute HTTP or HTTPS URL");
     }
     const maxQueueSize = options.maxQueueSize ?? 2048;
@@ -65,7 +65,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
 
   record(event: RunEvent): void {
     if (event.traceId === undefined || event.spanId === undefined) return;
-    const key = this.key(event.runId, event.spanId);
+    const key = this.key(event.traceId, event.spanId);
     if (event.type === "tool.started") {
       if (this.pending.size + this.queue.length >= this.maxQueueSize) {
         this.droppedSpans += 1;
@@ -117,8 +117,8 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     return exported;
   }
 
-  private key(runId: string, spanId: string): string {
-    return `${runId}\u0000${spanId}`;
+  private key(traceId: string, spanId: string): string {
+    return `${traceId}\u0000${spanId}`;
   }
 
   private toSpan(started: RunEvent, ended: RunEvent): OtlpSpan {
