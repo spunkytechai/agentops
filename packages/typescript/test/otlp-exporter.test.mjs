@@ -86,8 +86,8 @@ test("drops spans with oversized exported metadata", async () => {
   const exporter = new OtlpHttpSpanExporter(
     "http://collector:4318", () => {}, { maxAttributeBytes: 8 },
   );
-  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", { runId: "r".repeat(9) }));
-  exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.001Z", { runId: "r".repeat(9) }));
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", { runId: "é".repeat(5) }));
+  exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.001Z", { runId: "é".repeat(5) }));
   assert.equal(exporter.droppedSpans, 1);
   assert.equal(await exporter.flush(), 0);
 
