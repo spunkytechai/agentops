@@ -55,7 +55,7 @@ class WorkerProcess:
                 {"protocol_version": self.PROTOCOL_VERSION, "request_id": identifier,
                  "tool_name": tool_name, "input": input},
                 ensure_ascii=False, separators=(",", ":"), allow_nan=False,
-            ).encode("utf-8") + b"\\n"
+            ).encode("utf-8") + b"\n"
         except (TypeError, ValueError) as exc:
             raise WorkerExecutionError("worker request is not valid JSON") from exc
         if len(line) > self.max_input_bytes:
@@ -111,7 +111,7 @@ class WorkerProcess:
                 raise WorkerExecutionError("worker execution deadline exceeded") from exc
             if process.returncode != 0:
                 raise WorkerExecutionError("worker exited unsuccessfully")
-            if not output.endswith(b"\\n") or output.count(b"\\n") != 1:
+            if not output.endswith(b"\n") or output.count(b"\n") != 1:
                 raise WorkerExecutionError("worker must return exactly one JSONL response")
             try:
                 response = json.loads(output[:-1].decode("utf-8"))
