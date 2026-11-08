@@ -28,7 +28,6 @@ class OtlpHttpSpanExporter:
         max_queue_size: int = 2048,
         max_batch_size: int = 512,
         max_retries: int = 2,
-        resource_attributes: Mapping[str, str] | None = None,
     ) -> None:
         parsed = urlsplit(endpoint)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -43,7 +42,6 @@ class OtlpHttpSpanExporter:
         self._max_queue_size = max_queue_size
         self._max_batch_size = min(max_batch_size, max_queue_size)
         self._max_retries = max_retries
-        self._resource_attributes = dict(resource_attributes or {})
         self._pending: OrderedDict[tuple[str, str], RunEvent] = OrderedDict()
         self._queue: deque[dict[str, object]] = deque()
         self.dropped_spans = 0
@@ -115,7 +113,6 @@ class OtlpHttpSpanExporter:
             body = json.dumps({
                 "resourceSpans": [{
                     "resource": {"attributes": [
-                        self._attribute(k, v) for k, v in sorted(self._resource_attributes.items())
                     ]},
                     "scopeSpans": [{
                         "scope": {"name": "agentops", "version": "0.1.0"},
