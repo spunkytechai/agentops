@@ -84,30 +84,50 @@ class DockerWorkerTests(unittest.TestCase):
             DockerWorker("example/worker", docker_executable="docker\x00")
 
     def test_slot_wait_consumes_the_same_overall_deadline_as_execution(self):
-        worker = DockerWorker("example/worker:latest", timeout_seconds=0.3, max_concurrent_workers=1)
-        started = threading.Event()
+        worker = DockerWorker("example/worker:latest", timeout_seconds=2.0, max_concurrent_workers=1)
+        first_started = threading.Event()
+        second_started = threading.Event()
+        release_first = threading.Event()
+        second_result = []
 
         def fake_execute(tool_name, input, **kwargs):
-            if not started.is_set():
-                started.set()
-                time.sleep(0.15)
+            if tool_name == "first":
+                first_started.set()
+                if not release_first.wait(timeout=1):
+                    raise AssertionError("test did not release the first worker")
             return {"ok": True}
+
+        def execute_second():
+            second_started.set()
+            try:
+                second_result.append(worker.execute("second", {}))
+            except Exception as error:
+                second_result.append(error)
 
         with patch("agentops.docker_worker.WorkerProcess") as process:
             process.return_value.execute.side_effect = fake_execute
             first = threading.Thread(target=lambda: worker.execute("first", {}))
             first.start()
-            self.assertTrue(started.wait(timeout=1))
-            time.sleep(0.05)
-            self.assertEqual(worker.execute("second", {}), {"ok": True})
+            self.assertTrue(first_started.wait(timeout=1))
+
+            second = threading.Thread(target=execute_second)
+            second.start()
+            self.assertTrue(second_started.wait(timeout=1))
+            time.sleep(0.1)
+            release_first.set()
+
             first.join(timeout=1)
+            second.join(timeout=1)
             self.assertFalse(first.is_alive())
+            self.assertFalse(second.is_alive())
             timeouts = [
                 call.kwargs["timeout_seconds"] for call in process.call_args_list
             ]
+
+        self.assertEqual(second_result, [{"ok": True}])
         self.assertEqual(len(timeouts), 2)
-        self.assertGreater(timeouts[0], 0.25)
-        self.assertLess(timeouts[1], timeouts[0] - 0.04)
+        self.assertGreater(timeouts[0], 1.9)
+        self.assertLess(timeouts[1], timeouts[0] - 0.05)
 
     def test_cleans_up_container_after_worker_deadline(self):
         with tempfile.TemporaryDirectory() as directory:
