@@ -9,6 +9,20 @@ test("executes a versioned JSONL request and returns its result", async () => {
   assert.deepEqual(await worker.execute("math.add", { value: 42 }, { requestId: "req-1" }), { value: 42 });
 });
 
+test("rejects non-finite numbers instead of silently converting them to null", async () => {
+  const worker = new WorkerProcess(process.execPath, ["-e",
+    "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const r=JSON.parse(s);process.stdout.write(JSON.stringify({protocol_version:1,request_id:r.request_id,result:r.input})+'\\n')})"
+  ]);
+  await assert.rejects(worker.execute("tool", { amount: Number.NaN }), WorkerExecutionError);
+});
+
+test("rejects undefined values instead of silently omitting protocol fields", async () => {
+  const worker = new WorkerProcess(process.execPath, ["-e",
+    "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const r=JSON.parse(s);process.stdout.write(JSON.stringify({protocol_version:1,request_id:r.request_id,result:r.input})+'\\n')})"
+  ]);
+  await assert.rejects(worker.execute("tool", { value: undefined }), WorkerExecutionError);
+});
+
 test("rejects oversized input before spawning", async () => {
   const worker = new WorkerProcess(process.execPath, ["-e", "process.exit(99)"], { maxInputBytes: 32 });
   await assert.rejects(worker.execute("tool", { payload: "x".repeat(100) }), WorkerExecutionError);
