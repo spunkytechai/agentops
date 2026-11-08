@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -12,6 +13,14 @@ from agentops import (
     AgentRegistry,
     SqliteAgentRegistryStore,
 )
+
+
+def _register_agent_in_process(database, barrier, results):
+    store = SqliteAgentRegistryStore(database, timeout_seconds=5)
+    barrier.wait(timeout=10)
+    created = store.create(AgentDefinition("cross-process.agent", "1.0.0"))
+    results.put("created" if created else "duplicate")
+    store.close()
 
 
 class SqliteAgentRegistryTests(unittest.TestCase):
@@ -47,6 +56,29 @@ class SqliteAgentRegistryTests(unittest.TestCase):
             second.register(agent)
         first_store.close()
         second_store.close()
+
+    def test_separate_processes_atomically_reject_duplicate_registration(self):
+        context = multiprocessing.get_context("spawn")
+        barrier = context.Barrier(2)
+        results = context.Queue()
+        processes = [
+            context.Process(
+                target=_register_agent_in_process,
+                args=(self.path, barrier, results),
+            )
+            for _ in range(2)
+        ]
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join(timeout=10)
+        self.assertTrue(all(process.exitcode == 0 for process in processes))
+        self.assertCountEqual(
+            [results.get(timeout=5) for _ in processes], ["created", "duplicate"]
+        )
+        for process in processes:
+            process.close()
+        results.close()
 
     def test_list_is_filtered_and_sorted_by_exact_agent_id_and_version(self):
         registry = AgentRegistry(store=SqliteAgentRegistryStore(self.path))
