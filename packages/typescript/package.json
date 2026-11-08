@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "typescript": "^7.0.2",
-    "better-sqlite3": "^11.8.1",
+    "better-sqlite3": "^12.11.1",
     "@types/node": "^26.6.6"
   },
   "engines": {
