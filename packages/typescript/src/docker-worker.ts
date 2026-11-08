@@ -70,9 +70,9 @@ export class DockerWorker {
     positiveSafeInteger(this.tmpfsSizeBytes, "tmpfsSizeBytes");
     if (!Number.isFinite(this.cpuLimit) || this.cpuLimit <= 0) throw new TypeError("cpuLimit must be positive and finite");
     this.workerOptions = {
-      timeoutMs: options.timeoutMs,
-      maxInputBytes: options.maxInputBytes,
-      maxOutputBytes: options.maxOutputBytes,
+      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options.maxInputBytes !== undefined ? { maxInputBytes: options.maxInputBytes } : {}),
+      ...(options.maxOutputBytes !== undefined ? { maxOutputBytes: options.maxOutputBytes } : {}),
     };
   }
 
