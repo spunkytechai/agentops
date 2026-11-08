@@ -80,7 +80,7 @@ class DockerWorkerTests(unittest.TestCase):
             DockerWorker("example/worker", docker_executable="docker\x00")
 
     def test_slot_wait_consumes_the_same_overall_deadline_as_execution(self):
-        worker = DockerWorker("example/worker:latest", timeout_seconds=0.3)
+        worker = DockerWorker("example/worker:latest", timeout_seconds=0.3, max_concurrent_workers=1)
         started = threading.Event()
 
         def fake_execute(tool_name, input, **kwargs):
