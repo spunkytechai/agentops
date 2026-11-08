@@ -136,6 +136,7 @@ export class InMemoryEvaluationRunStore implements EvaluationRunStore {
 
 export class SqliteEvaluationRunStore implements EvaluationRunStore {
   constructor(private readonly database: SqliteDatabase, private readonly clock: () => number = Date.now) {
+    database.exec("PRAGMA foreign_keys = ON");
     database.exec("CREATE TABLE IF NOT EXISTS agentops_evaluation_runs (run_id TEXT PRIMARY KEY, suite_name TEXT NOT NULL, created_at_ms INTEGER NOT NULL, report_json TEXT NOT NULL)");
     database.exec("CREATE TABLE IF NOT EXISTS agentops_evaluation_baselines (suite_name TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES agentops_evaluation_runs(run_id))");
   }
