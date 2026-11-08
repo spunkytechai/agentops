@@ -53,7 +53,7 @@ function decode(value: string): EvaluationReport {
   }
   if (typeof raw !== "object" || raw === null) throw new EvaluationRunStoreError("stored evaluation report is invalid");
   const row = raw as Record<string, unknown>;
-  if (typeof row.suite_name !== "string" || !Number.isInteger(row.total_cases) ||
+  if (typeof row.suite_name !== "string" || row.suite_name.trim().length === 0 || !Number.isInteger(row.total_cases) ||
       !Number.isInteger(row.passed_cases) || !Number.isInteger(row.failed_cases) ||
       typeof row.weighted_score !== "number" || !Number.isFinite(row.weighted_score) ||
       typeof row.pass_rate !== "number" || !Number.isFinite(row.pass_rate) ||
@@ -66,7 +66,7 @@ function decode(value: string): EvaluationReport {
     }
     const item = rawItem as Record<string, unknown>;
     if (typeof item.case_id !== "string" || typeof item.score !== "number" ||
-        !Number.isFinite(item.score) || typeof item.passed !== "boolean" ||
+        !Number.isFinite(item.score) || item.score < 0 || item.score > 1 || typeof item.passed !== "boolean" ||
         (item.error_type !== null && item.error_type !== undefined && typeof item.error_type !== "string")) {
       throw new EvaluationRunStoreError("stored evaluation case result is invalid");
     }
@@ -75,8 +75,12 @@ function decode(value: string): EvaluationReport {
       ...(typeof item.error_type === "string" ? { errorType: item.error_type } : {}),
     });
   });
-  if (row.total_cases !== results.length ||
-      (row.passed_cases as number) + (row.failed_cases as number) !== row.total_cases) {
+  if (row.total_cases !== results.length || (row.total_cases as number) <= 0 ||
+      (row.passed_cases as number) + (row.failed_cases as number) !== row.total_cases ||
+      (row.passed_cases as number) !== results.filter((item) => item.passed).length ||
+      (row.failed_cases as number) !== results.length - (row.passed_cases as number) ||
+      row.weighted_score < 0 || row.weighted_score > 1 || row.pass_rate < 0 || row.pass_rate > 1 ||
+      Math.abs(row.pass_rate - (row.passed_cases as number) / (row.total_cases as number)) > 1e-12) {
     throw new EvaluationRunStoreError("stored evaluation report counts are inconsistent");
   }
   return Object.freeze({
