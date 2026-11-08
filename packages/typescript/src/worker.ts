@@ -49,7 +49,7 @@ export class WorkerProcess {
     try {
       request = Buffer.from(JSON.stringify({
         protocol_version: 1, request_id: requestId, tool_name: toolName, input,
-      }) + "\\n", "utf8");
+      }) + "\n", "utf8");
     } catch {
       return Promise.reject(new WorkerExecutionError("worker request is not valid JSON"));
     }
