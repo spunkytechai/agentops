@@ -34,6 +34,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
   private readonly maxRetries: number;
   private readonly pending = new Map<string, RunEvent>();
   private readonly queue: OtlpSpan[] = [];
+  private flushTail: Promise<void> = Promise.resolve();
   droppedSpans = 0;
 
   constructor(endpoint: string, transport: OtlpHttpTransport, options: OtlpHttpSpanExporterOptions = {}) {
@@ -84,7 +85,14 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     this.queue.push(this.toSpan(started, event));
   }
 
-  async flush(): Promise<number> {
+  flush(): Promise<number> {
+    const run = () => this.flushQueued();
+    const result = this.flushTail.then(run, run);
+    this.flushTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private async flushQueued(): Promise<number> {
     let exported = 0;
     while (this.queue.length > 0) {
       const batch = this.queue.splice(0, this.maxBatchSize);

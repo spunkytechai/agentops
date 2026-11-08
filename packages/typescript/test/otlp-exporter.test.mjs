@@ -44,3 +44,33 @@ test("retries a failed HTTP export without losing the batch", async () => {
   assert.equal(await exporter.flush(), 1);
   assert.equal(calls, 2);
 });
+
+test("serializes concurrent flushes to preserve FIFO delivery", async () => {
+  const sent = [];
+  let releaseFirst;
+  let firstStarted;
+  const firstStartedPromise = new Promise((resolve) => { firstStarted = resolve; });
+  const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
+  const exporter = new OtlpHttpSpanExporter("http://collector:4318", async (_url, _headers, body) => {
+    const spans = JSON.parse(body).resourceSpans[0].scopeSpans[0].spans;
+    sent.push(spans[0].attributes.find((item) => item.key === "agentops.run_id").value.stringValue);
+    if (sent.length === 1) {
+      firstStarted();
+      await firstGate;
+    }
+  }, { maxBatchSize: 1 });
+
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z", { runId: "first" }));
+  exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.001Z", { runId: "first" }));
+  exporter.record(event("tool.started", "2026-11-08T00:00:00.002Z", { runId: "second", spanId: "4".repeat(16) }));
+  exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.003Z", { runId: "second", spanId: "4".repeat(16) }));
+
+  const firstFlush = exporter.flush();
+  await firstStartedPromise;
+  const secondFlush = exporter.flush();
+  await Promise.resolve();
+  assert.deepEqual(sent, ["first"]);
+  releaseFirst();
+  assert.deepEqual(await Promise.all([firstFlush, secondFlush]), [2, 0]);
+  assert.deepEqual(sent, ["first", "second"]);
+});
