@@ -41,7 +41,7 @@ function assertJsonValue(value: unknown, path: string, ancestors = new Set<objec
         assertJsonValue(descriptor.value, `${path}[${index}]`, ancestors);
       }
       for (const key of Reflect.ownKeys(value)) {
-        if (typeof key === "symbol" || (key !== "length" && !/^(0|[1-9]\\d*)$/.test(key))) {
+        if (typeof key === "symbol" || (key !== "length" && !/^(0|[1-9]\d*)$/.test(key))) {
           throw new TypeError(`${path} contains an unsupported array property`);
         }
       }
