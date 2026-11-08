@@ -137,3 +137,9 @@ test("drops spans with invalid duration metadata", async () => {
   assert.equal(exporter.droppedSpans, 1);
   assert.equal(await exporter.flush(), 0);
 });
+
+test("rejects timestamps without an explicit timezone", () => {
+  const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {});
+  exporter.record(event("tool.started", "2026-11-08T00:00:00"));
+  assert.equal(exporter.droppedSpans, 1);
+});
