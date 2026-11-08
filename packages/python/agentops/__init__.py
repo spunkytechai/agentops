@@ -11,6 +11,7 @@ from .approvals import (
 )
 from .events import InMemoryRecorder, RunEvent, TraceContext
 from .fingerprint import action_fingerprint, canonical_action_json
+from .otlp import OtlpHttpSpanExporter
 from .policy import PolicyDecision, PolicyDeniedError, PolicyRule, ToolPolicy
 from .registry import (
     AgentAlreadyRegisteredError,
@@ -40,6 +41,7 @@ __all__ = [
     "InMemoryApprovalStore",
     "SqliteApprovalStore",
     "InMemoryRecorder",
+    "OtlpHttpSpanExporter",
     "PolicyDecision",
     "PolicyDeniedError",
     "PolicyRule",
