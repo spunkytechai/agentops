@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   EvaluationCase,
   EvaluationRunStoreError,
@@ -39,19 +42,25 @@ test("store rejects duplicate run IDs and invalid baselines", async () => {
 });
 
 test("SQLite store recovers runs and baseline after reopening", async () => {
-  const database = new Database(":memory:");
+  const directory = mkdtempSync(join(tmpdir(), "agentops-evaluation-"));
+  const filename = join(directory, "runs.sqlite3");
   const report = await makeReport();
+  const database = new Database(filename);
   const store = new SqliteEvaluationRunStore(database, () => 1_800_000_000_123);
   const saved = store.save(report, "durable-1");
   store.setBaseline("support-quality", "durable-1");
-  const reopened = new SqliteEvaluationRunStore(database);
+  database.close();
+
+  const reopenedDatabase = new Database(filename);
+  const reopened = new SqliteEvaluationRunStore(reopenedDatabase);
   assert.deepEqual(reopened.get("durable-1"), saved);
   assert.deepEqual(reopened.getBaseline("support-quality"), saved);
   const replacement = reopened.save(report, "durable-2");
   reopened.setBaseline("support-quality", "durable-2");
   assert.deepEqual(reopened.getBaseline("support-quality"), replacement);
   assert.throws(() => reopened.save(report, "durable-2"), EvaluationRunStoreError);
-  database.close();
+  reopenedDatabase.close();
+  rmSync(directory, { recursive: true, force: true });
 });
 
 test("SQLite baseline update is suite-bound", async () => {
