@@ -38,7 +38,10 @@ function normalize(value: unknown, path: string): ActionValue {
       throw new TypeError(`${path} must contain only plain JSON objects`);
     }
     const source = value as Record<string, unknown>;
-    const result: Record<string, ActionValue> = {};
+    // A null-prototype dictionary treats "__proto__" as ordinary data rather
+    // than invoking Object.prototype's legacy prototype setter. This keeps
+    // canonicalization aligned with Python and prevents silently dropping keys.
+    const result = Object.create(null) as Record<string, ActionValue>;
     for (const key of Object.keys(source).sort()) {
       assertWellFormedUnicode(key, `${path} object key`);
       result[key] = normalize(source[key], `${path}.${key}`);
