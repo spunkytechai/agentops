@@ -57,7 +57,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
     if (!Number.isSafeInteger(maxRetries) || maxRetries < 0) {
       throw new TypeError("maxRetries must be a non-negative integer");
     }
-    this.endpoint = endpoint.replace(/\\/+$/, "") + "/v1/traces";
+    this.endpoint = endpoint.replace(/\/+$/, "") + "/v1/traces";
     this.transport = transport;
     this.maxQueueSize = maxQueueSize;
     this.maxBatchSize = Math.min(maxBatchSize, maxQueueSize);
@@ -126,7 +126,7 @@ export class OtlpHttpSpanExporter implements EventRecorder {
   }
 
   private key(traceId: string, spanId: string): string {
-    return `${traceId}\\u0000${spanId}`;
+    return `${traceId}\u0000${spanId}`;
   }
 
   private toSpan(started: RunEvent, ended: RunEvent): OtlpSpan {
