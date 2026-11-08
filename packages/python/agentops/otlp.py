@@ -29,20 +29,33 @@ class OtlpHttpSpanExporter:
         max_queue_size: int = 2048,
         max_batch_size: int = 512,
         max_retries: int = 2,
+        max_attribute_bytes: int = 256,
     ) -> None:
         parsed = urlsplit(endpoint)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.query or parsed.fragment:
+        if (
+            parsed.scheme not in {"http", "https"} or not parsed.netloc
+            or parsed.query or parsed.fragment
+        ):
             raise ValueError("endpoint must be an absolute HTTP or HTTPS URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("endpoint must not contain embedded credentials")
         if any(isinstance(v, bool) or not isinstance(v, int) or v <= 0
                for v in (max_queue_size, max_batch_size)):
             raise ValueError("queue and batch sizes must be positive integers")
         if isinstance(max_retries, bool) or not isinstance(max_retries, int) or max_retries < 0:
             raise ValueError("max_retries must be a non-negative integer")
+        if (
+            isinstance(max_attribute_bytes, bool)
+            or not isinstance(max_attribute_bytes, int)
+            or max_attribute_bytes <= 0
+        ):
+            raise ValueError("max_attribute_bytes must be a positive integer")
         self._url = endpoint.rstrip("/") + "/v1/traces"
         self._transport = transport
         self._max_queue_size = max_queue_size
         self._max_batch_size = min(max_batch_size, max_queue_size)
         self._max_retries = max_retries
+        self._max_attribute_bytes = max_attribute_bytes
         self._pending: OrderedDict[tuple[str, str], RunEvent] = OrderedDict()
         self._queue: deque[dict[str, object]] = deque()
         self.dropped_spans = 0
@@ -54,6 +67,9 @@ class OtlpHttpSpanExporter:
                 return
             key = (event.trace_id, event.span_id)
             if event.event_type == "tool.started":
+                if not self._metadata_within_limit(event.run_id) or not self._metadata_within_limit(event.tool_name):
+                    self.dropped_spans += 1
+                    return
                 if len(self._pending) + len(self._queue) >= self._max_queue_size:
                     self.dropped_spans += 1
                     return
@@ -62,10 +78,27 @@ class OtlpHttpSpanExporter:
             started = self._pending.pop(key, None)
             if started is None:
                 return
+            if (
+                not self._metadata_within_limit(started.run_id)
+                or not self._metadata_within_limit(started.tool_name)
+                or not self._metadata_within_limit(event.error_type)
+            ):
+                self.dropped_spans += 1
+                return
             if len(self._queue) >= self._max_queue_size:
                 self.dropped_spans += 1
                 return
             self._queue.append(self._span(started, event))
+
+    def _metadata_within_limit(self, value: object) -> bool:
+        if value is None:
+            return True
+        if not isinstance(value, str):
+            return False
+        try:
+            return len(value.encode("utf-8")) <= self._max_attribute_bytes
+        except UnicodeEncodeError:
+            return False
 
     @staticmethod
     def _unix_nano(value: datetime) -> str:
