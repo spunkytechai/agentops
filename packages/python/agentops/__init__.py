@@ -21,6 +21,13 @@ from .evaluation import (
     NumericToleranceMetric,
     compare_evaluations,
 )
+from .evaluation_store import (
+    EvaluationRun,
+    EvaluationRunStore,
+    EvaluationRunStoreError,
+    InMemoryEvaluationRunStore,
+    SqliteEvaluationRunStore,
+)
 from .events import InMemoryRecorder, RunEvent, TraceContext
 from .fingerprint import action_fingerprint, canonical_action_json
 from .otlp import OtlpHttpSpanExporter
@@ -37,6 +44,11 @@ from .registry import (
 from .runtime import ToolExecutionTimeoutError, ToolExecutor
 
 __all__ = [
+    "EvaluationRun",
+    "EvaluationRunStore",
+    "EvaluationRunStoreError",
+    "InMemoryEvaluationRunStore",
+    "SqliteEvaluationRunStore",
     "EvaluationCase",
     "EvaluationCaseResult",
     "EvaluationMetric",

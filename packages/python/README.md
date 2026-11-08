@@ -85,3 +85,18 @@ print(report.weighted_score, report.pass_rate)
 ```
 
 Use `await suite.run_async(async_operation)` for sequential asynchronous operations. The engine does not call a model provider or persist datasets/reports.
+
+## Persist evaluation runs and baselines
+
+```python
+from agentops import EvaluationRunStore, SqliteEvaluationRunStore
+
+store = SqliteEvaluationRunStore("agentops-evaluations.sqlite3")
+run = store.save(report, run_id="answer-quality-2026-11-08")
+store.set_baseline("answer-quality", run.run_id)
+baseline = store.get_baseline("answer-quality")
+# Close the store during application shutdown.
+store.close()
+```
+
+The SQLite store saves only reports and per-case scores, not evaluation inputs or model outputs. The in-memory implementation is available as `InMemoryEvaluationRunStore` for tests and local development.
