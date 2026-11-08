@@ -76,6 +76,12 @@ The exporter emits only run ID, tool name, status, duration, and error class att
 
 `compare_evaluations(baseline, candidate, max_score_drop=0)` requires matching suite names and case ID sets. It reports aggregate score delta and case IDs whose scores fell beyond the allowed drop. It is a comparison primitive, not an automated CI gate or persistent baseline store. Both SDKs execute the shared `conformance/fixtures/evaluations.json` fixture.
 
+## Isolated worker protocol
+
+WorkerProcess starts a fresh child for each invocation and communicates over stdin/stdout using one newline-delimited JSON request and one newline-delimited JSON response. Protocol version 1 fields are protocol_version, request_id, tool_name, and input; responses echo the version and request ID and contain result. The adapter rejects malformed, multi-line, uncorrelated, or non-zero-exit responses. Both SDKs enforce a serialized input byte limit before spawning, count stdout bytes while streaming, enforce a wall-clock deadline, and kill/reap the child on timeout or output overflow. Stderr is discarded by default to avoid leaking payloads or accumulating unbounded diagnostics.
+
+Each invocation starts a new process; this is not a persistent worker pool. The protocol carries JSON values only. Hosts remain responsible for validating tool schemas and mapping trusted tool identifiers to worker-side operations. Do not put credentials in worker arguments or telemetry; use a narrowly scoped secret-delivery mechanism supplied by the deployment environment.
+
 ## Evaluation run persistence
 
 `EvaluationRunStore` persists evaluation reports independently of datasets and model-provider execution. Each run has a unique caller-supplied or generated ID, suite name, epoch-millisecond creation timestamp, and report. `InMemoryEvaluationRunStore` is process-local; `SqliteEvaluationRunStore` persists run history and one replaceable baseline pointer per suite. Baseline assignment is an atomic insert-select/upsert constrained by both run ID and suite name. Both SDKs use the same `agentops_evaluation_runs` and `agentops_evaluation_baselines` schema and a shared snake_case report JSON payload. The store does not retain inputs, expected outputs, actual model outputs, or prompts.
