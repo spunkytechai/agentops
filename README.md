@@ -22,7 +22,8 @@ AgentOps is an open-source, provider-agnostic toolkit for building reliable AI a
 - Asynchronous TypeScript execution with configurable timeouts and abort signaling.
 - Structured start, success, failure, and timeout events.
 - W3C-compatible trace, span, and parent-span identifiers propagated through execution lifecycle events in both SDKs.
-- In-memory recorders that exclude prompts, arguments, results, and credentials.\n- OTLP/HTTP JSON trace export in both SDKs, with bounded queues, batching, retries, and allowlisted span attributes.
+- In-memory recorders that exclude prompts, arguments, results, and credentials.
+- OTLP/HTTP JSON trace export in both SDKs, with bounded queues, batching, retries, and allowlisted span attributes.
 - Shared cross-language policy and action-fingerprint fixtures.
 - Automated unit tests and CI across supported Python versions, plus Node.js.
 
@@ -223,7 +224,8 @@ Policy and approval are application-level controls, **not a sandbox**. The defau
 - [x] Persistent agent registry with shared Python/TypeScript SQLite schema
 - [ ] Transactional server-database adapters for multi-host deployments
 - [ ] Distributed identity and approval scopes
-- [x] Initial OTLP/HTTP JSON trace exporter for Python and TypeScript\n- [ ] OpenTelemetry SDK integration, sampling, and evaluation engine
+- [x] Initial OTLP/HTTP JSON trace exporter for Python and TypeScript
+- [ ] OpenTelemetry SDK integration, sampling, and evaluation engine
 - [ ] Isolated worker adapters and deployment guides
 - [ ] Independent security review before stable release
 
