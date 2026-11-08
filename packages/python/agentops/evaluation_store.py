@@ -7,7 +7,7 @@ import math
 import sqlite3
 from pathlib import Path
 from threading import RLock
-from time import time
+from time import time_ns
 from typing import Callable, Protocol
 from uuid import uuid4
 
@@ -128,8 +128,8 @@ def _decode(value: str) -> EvaluationReport:
 class InMemoryEvaluationRunStore:
     """Thread-safe process-local evaluation history and baseline pointers."""
 
-    def __init__(self, *, clock: Callable[[], float] | None = None) -> None:
-        self._clock = clock or (lambda: time() * 1000)
+    def __init__(self, *, clock: Callable[[], int | float] | None = None) -> None:
+        self._clock = clock or (lambda: time_ns() // 1_000_000)
         self._runs: dict[str, EvaluationRun] = {}
         self._baselines: dict[str, str] = {}
         self._lock = RLock()
@@ -167,8 +167,17 @@ class InMemoryEvaluationRunStore:
 
     def _timestamp(self) -> int:
         value = self._clock()
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0 or value > 9_007_199_254_740_991:
-            raise EvaluationRunStoreError("clock must return a non-negative finite millisecond timestamp")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or value < 0
+            or value > 9_007_199_254_740_991
+            or (
+                isinstance(value, float)
+                and (not math.isfinite(value) or not value.is_integer())
+            )
+        ):
+            raise EvaluationRunStoreError("clock must return a non-negative safe integer millisecond timestamp")
         return int(value)
 
 
@@ -176,12 +185,12 @@ class SqliteEvaluationRunStore:
     """SQLite history store; baseline changes are suite-checked and atomic."""
 
     def __init__(
-        self, database: str | Path, *, clock: Callable[[], float] | None = None,
+        self, database: str | Path, *, clock: Callable[[], int | float] | None = None,
         timeout_seconds: float = 30.0,
     ) -> None:
         if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)) or not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be a positive finite number")
-        self._clock = clock or (lambda: time() * 1000)
+        self._clock = clock or (lambda: time_ns() // 1_000_000)
         self._connection = sqlite3.connect(
             str(database), timeout=timeout_seconds, isolation_level=None, check_same_thread=False,
         )
@@ -253,8 +262,17 @@ class SqliteEvaluationRunStore:
 
     def _timestamp(self) -> int:
         value = self._clock()
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
-            raise EvaluationRunStoreError("clock must return a non-negative finite millisecond timestamp")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or value < 0
+            or value > 9_007_199_254_740_991
+            or (
+                isinstance(value, float)
+                and (not math.isfinite(value) or not value.is_integer())
+            )
+        ):
+            raise EvaluationRunStoreError("clock must return a non-negative safe integer millisecond timestamp")
         return int(value)
 
     @staticmethod

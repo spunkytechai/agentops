@@ -96,3 +96,25 @@ test("SQLite evaluation store enforces baseline foreign keys", () => {
   ).run("support-quality", "missing-run"));
   database.close();
 });
+
+
+test("evaluation stores reject fractional and unsafe millisecond timestamps", async () => {
+  const report = await makeReport();
+  for (const value of [1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(
+      () => new InMemoryEvaluationRunStore(() => value).save(report, "invalid-memory-clock"),
+      EvaluationRunStoreError,
+    );
+    const database = new Database(":memory:");
+    try {
+      const store = new SqliteEvaluationRunStore(database, () => value);
+      assert.throws(
+        () => store.save(report, "invalid-sqlite-clock"),
+        EvaluationRunStoreError,
+      );
+    } finally {
+      database.close();
+    }
+  }
+});
+
