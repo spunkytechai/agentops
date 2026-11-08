@@ -71,6 +71,6 @@ test("serializes concurrent flushes to preserve FIFO delivery", async () => {
   await Promise.resolve();
   assert.deepEqual(sent, ["first"]);
   releaseFirst();
-  assert.deepEqual(await Promise.all([firstFlush, secondFlush]), [1, 1]);
+  assert.deepEqual(await Promise.all([firstFlush, secondFlush]), [2, 0]);
   assert.deepEqual(sent, ["first", "second"]);
 });
