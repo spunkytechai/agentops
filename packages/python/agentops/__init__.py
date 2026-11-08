@@ -12,6 +12,7 @@ from .approvals import (
 from .evaluation import (
     EvaluationCase,
     EvaluationCaseResult,
+    EvaluationMetric,
     EvaluationRegression,
     EvaluationRegressionError,
     EvaluationReport,
@@ -38,6 +39,7 @@ from .runtime import ToolExecutionTimeoutError, ToolExecutor
 __all__ = [
     "EvaluationCase",
     "EvaluationCaseResult",
+    "EvaluationMetric",
     "EvaluationRegression",
     "EvaluationRegressionError",
     "EvaluationReport",
