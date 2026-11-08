@@ -88,7 +88,7 @@ Each invocation starts a new process; this is not a persistent worker pool. The 
 
 The fixed profile sets `--network=none`, `--read-only`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`, numeric non-root `--user=65532:65532`, memory and equal memory-swap limits, CPU quota, PID limit, and a size-limited `/tmp` tmpfs with `noexec,nosuid,nodev`. Callers may lower or raise the numeric resource budgets, but cannot override the security flags through this API. Protocol byte limits and wall-clock deadlines remain enforced by `WorkerProcess`.
 
-This is one container per invocation, not a persistent pool or scheduler. Cleanup is best-effort if the Docker daemon is unavailable or unresponsive; production hosts should monitor orphan containers and apply daemon-level quotas. The Docker daemon and host kernel remain trusted. For stronger hostile-code isolation, use a sandbox runtime such as gVisor or Kata Containers, or a microVM boundary.
+Each adapter instance also maintains a bounded in-process semaphore (default four concurrent containers). Calls waiting for a slot are limited by the same configured deadline. This is a per-process cap, not a distributed quota; enforce aggregate limits at the host or orchestration layer. This is one container per invocation, not a persistent pool or scheduler. Cleanup is best-effort if the Docker daemon is unavailable or unresponsive; production hosts should monitor orphan containers and apply daemon-level quotas. The Docker daemon and host kernel remain trusted. For stronger hostile-code isolation, use a sandbox runtime such as gVisor or Kata Containers, or a microVM boundary.
 
 ## Evaluation run persistence
 
