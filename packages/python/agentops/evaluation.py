@@ -175,7 +175,7 @@ class EvaluationSuite:
             except Exception as exc:
                 results.append(EvaluationCaseResult(case.case_id, 0.0, False, type(exc).__name__))
                 continue
-            score = self.metric.score(case.expected, actual)
+            score = self.metric.score(deepcopy(case.expected), actual)
             if isinstance(score, bool) or not isinstance(score, (int, float)) or not math.isfinite(score) or not 0 <= score <= 1:
                 raise ValueError("metric score must be finite and between 0 and 1")
             value = float(score)
