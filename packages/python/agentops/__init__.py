@@ -9,7 +9,8 @@ from .approvals import (
     SqliteApprovalStore,
     ApprovalStore,
 )
-from .evaluation import (\n    EvaluationCase,\n    EvaluationCaseResult,\n    EvaluationRegression,\n    EvaluationRegressionError,\n    EvaluationReport,\n    EvaluationSuite,\n    ExactMatchMetric,\n    compare_evaluations,\n)\nfrom .events import InMemoryRecorder, RunEvent, TraceContext
+from .evaluation import (\n    EvaluationCase,\n    EvaluationCaseResult,\n    EvaluationRegression,\n    EvaluationRegressionError,\n    EvaluationReport,\n    EvaluationSuite,\n    ExactMatchMetric,\n    compare_evaluations,\n)\nfrom .evaluation import (EvaluationCase, EvaluationCaseResult, EvaluationRegression, EvaluationRegressionError, EvaluationReport, EvaluationSuite, ExactMatchMetric, NumericToleranceMetric, compare_evaluations)
+from .events import InMemoryRecorder, RunEvent, TraceContext
 from .fingerprint import action_fingerprint, canonical_action_json
 from .otlp import OtlpHttpSpanExporter
 from .policy import PolicyDecision, PolicyDeniedError, PolicyRule, ToolPolicy
@@ -25,7 +26,16 @@ from .registry import (
 from .runtime import ToolExecutionTimeoutError, ToolExecutor
 
 __all__ = [
-    "EvaluationCase",\n    "EvaluationCaseResult",\n    "EvaluationRegression",\n    "EvaluationRegressionError",\n    "EvaluationReport",\n    "EvaluationSuite",\n    "ExactMatchMetric",\n    "compare_evaluations",\n    "AgentAlreadyRegisteredError",
+    "EvaluationCase",\n    "EvaluationCaseResult",\n    "EvaluationRegression",\n    "EvaluationRegressionError",\n    "EvaluationReport",\n    "EvaluationSuite",\n    "ExactMatchMetric",\n    "compare_evaluations",\n    "EvaluationCase",
+    "EvaluationCaseResult",
+    "EvaluationRegression",
+    "EvaluationRegressionError",
+    "EvaluationReport",
+    "EvaluationSuite",
+    "ExactMatchMetric",
+    "NumericToleranceMetric",
+    "compare_evaluations",
+    "AgentAlreadyRegisteredError",
     "AgentDefinition",
     "AgentNotFoundError",
     "AgentRegistry",
