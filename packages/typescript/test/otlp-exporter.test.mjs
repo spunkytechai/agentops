@@ -8,14 +8,14 @@ const event = (type, timestamp, extra = {}) => ({
   ...extra,
 });
 
-test("exports completed lifecycle as OTLP JSON without payload data", () => {
+test("exports completed lifecycle as OTLP JSON without payload data", async () => {
   const requests = [];
   const exporter = new OtlpHttpSpanExporter("http://collector:4318", (url, headers, body) => {
     requests.push({ url, headers, payload: JSON.parse(body) });
   });
   exporter.record(event("tool.started", "2026-11-08T00:00:00.000Z"));
   exporter.record(event("tool.succeeded", "2026-11-08T00:00:00.125Z", { durationMs: 125 }));
-  assert.equal(exporter.flush(), 1);
+  assert.equal(await exporter.flush(), 1);
   const { url, headers, payload } = requests[0];
   assert.equal(url, "http://collector:4318/v1/traces");
   assert.equal(headers["Content-Type"], "application/json");
@@ -33,7 +33,7 @@ test("exports completed lifecycle as OTLP JSON without payload data", () => {
   assert.equal(encoded.includes("secret"), false);
 });
 
-test("retries a failed HTTP export without losing the batch", () => {
+test("retries a failed HTTP export without losing the batch", async () => {
   let calls = 0;
   const exporter = new OtlpHttpSpanExporter("http://collector:4318", () => {
     calls += 1;
