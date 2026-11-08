@@ -135,7 +135,7 @@ const worker = new WorkerProcess("node", ["worker-entrypoint.mjs"], {
 const result = await worker.execute("reports.summarize", { reportId: "r-123" });
 ```
 
-The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. A fresh process is launched per call; timed-out or over-budget children are killed. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
+The child reads one JSON line from stdin and writes one JSON line to stdout. It must echo protocol_version and request_id, and include result. A fresh process group is launched per call on POSIX; the group is terminated on completion, deadline, or output overflow so descendants cannot outlive the request. On Windows, the current adapter terminates the direct child only; use a container or external process supervisor if the worker can spawn descendants. This is process separation, not a sandbox; apply OS/container filesystem, network, privilege, CPU, memory, and PID controls for untrusted code.
 
 ## Docker-isolated worker
 
