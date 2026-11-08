@@ -26,6 +26,24 @@ jobs:
         run: python -m pip install -e .
       - name: Run tests
         run: python -m unittest discover -s packages/python/tests -v
+      - name: Build and verify Python wheel license files
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir dist
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          wheels = list(Path("dist").glob("*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected one wheel, found {len(wheels)}")
+          with ZipFile(wheels[0]) as wheel:
+              names = set(wheel.namelist())
+          for required in ("LICENSE", "NOTICE"):
+              if not any(name.rsplit("/", 1)[-1] == required for name in names):
+                  raise SystemExit(f"{required} missing from Python wheel")
+          print("Python wheel contains LICENSE and NOTICE")
+          PY
 
   typescript:
     name: TypeScript / Node 20
