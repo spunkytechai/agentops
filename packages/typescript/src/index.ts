@@ -1,4 +1,4 @@
-export { OtlpHttpSpanExporter, type OtlpHttpTransport, type OtlpHttpSpanExporterOptions } from "./otlp.js";
+export { EvaluationCase, EvaluationSuite, ExactMatchMetric, EvaluationRegressionError, compareEvaluations, type EvaluationMetric, type EvaluationCaseOptions, type EvaluationCaseResult, type EvaluationReport, type EvaluationSuiteOptions, type EvaluationRegression } from "./evaluation.js";\nexport { OtlpHttpSpanExporter, type OtlpHttpTransport, type OtlpHttpSpanExporterOptions } from "./otlp.js";
 export { InMemoryRecorder, TraceContext, type EventRecorder, type RunEvent, type ToolEventType, type TraceContextOptions } from "./observability.js";
 export {
   ApprovalDeniedError,
