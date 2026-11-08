@@ -14,6 +14,18 @@ This document describes a proposed business model and validation plan. It does n
 - **Clear separation:** Any future proprietary hosted control plane must live in a separately identified service/repository, with a documented API boundary. Do not move existing public core code into a private repository or change its license retroactively.
 - **Customer portability:** Provide documented export paths for traces, evaluation results, policies, and configuration. Do not make proprietary storage the only way to use the SDK.
 
+## Brand and naming risk
+
+There is an established AI-agent developer product using the **AgentOps** name: [AgentOps.ai](https://www.agentops.ai/) and the [AgentOps-AI/agentops GitHub project](https://github.com/AgentOps-AI/agentops). It operates in the adjacent AI-agent observability and developer-platform category. This is a material discoverability and potential trademark-confusion risk, not a legal conclusion about ownership or infringement.
+
+Recommended response:
+
+- Keep the current GitHub repository slug if changing it would disrupt existing links, but do not assume the generic name is ownable.
+- Use a distinctive outward-facing product identity such as **Spunky Tech Agent Governance** or another counsel-cleared brand; treat “AgentOps” as a category descriptor rather than the sole brand.
+- Do not copy the other project's logo, visual identity, domain, package naming, or marketing language.
+- Before public commercial launch, perform trademark, company-name, domain, app-store, and package-registry clearance in target markets with qualified counsel.
+- Make README metadata and product pages explicit that this is a Spunky Tech project and is not affiliated with AgentOps-AI.
+
 ## Target customers
 
 1. **Independent developers and AI builders** who need reliable evaluation, approval gates, and worker execution without assembling multiple tools.
@@ -22,6 +34,28 @@ This document describes a proposed business model and validation plan. It does n
 4. **AI implementation partners and consultancies** that integrate AgentOps into customer environments.
 
 Initial customer discovery should focus on teams already running agents with consequential tool access. Do not assume broad demand from GitHub stars or downloads alone.
+
+## Competitive pricing snapshot
+
+Public vendor pricing pages reviewed on 8 November 2026 show a consistent pattern: a free developer entry point, a low-cost paid tier for production teams, usage or retention-based expansion, and custom enterprise pricing.
+
+| Product | Public entry point | Paid entry point | Monetization emphasis |
+|---|---:|---:|---|
+| [Langfuse](https://langfuse.com/pricing) | Free Hobby | Core USD 29/month; Pro USD 199/month; Enterprise USD 2,499/month | Billable trace/observation units, retention, support and enterprise controls |
+| [LangSmith](https://www.langchain.com/pricing) | Free Developer | Plus USD 39/seat/month; Enterprise custom | Seats plus traces, compute/storage usage, deployment and enterprise options |
+| [Arize AX](https://arize.com/pricing) | Free AX | Pro USD 50/month; Enterprise custom | Trace volume, ingestion, retention, security and support |
+| [Portkey](https://portkey.ai/pricing) | Free, 10k recorded logs/month | Production USD 49/month, with usage overage | Recorded request/log volume, gateway controls and production support |
+| [Braintrust](https://www.braintrust.dev/pricing) | Free Starter | Pro USD 249/month; Enterprise custom | Processed data, evaluation scores, retention, RBAC and support |
+
+These are vendor-listed prices and allowances, not like-for-like feature comparisons. Pricing, usage definitions, discounts, and plan contents can change; re-check the official pages before making a commercial decision.
+
+### What this means for AgentOps
+
+1. **Do not compete as another generic tracing dashboard.** The SDK already has metadata-only event recording, OTLP export, and evaluation primitives, but it does not yet provide a hosted observability UI or a full OpenTelemetry SDK.
+2. **Differentiate around runtime governance and execution boundaries:** deny-by-default tool policy, principal- and action-bound one-time approvals, cross-language conformance, and hardened subprocess/Docker worker adapters. Communicate their limits honestly; they are not a complete identity platform or escape-proof sandbox.
+3. **Keep self-hosted SDK use free.** The market includes open-source/self-hosted alternatives, so monetization should be tied to genuinely delivered managed operations, team administration, support, and integration—not a paywall around the core runtime.
+4. **Start with services, not a premature SaaS build.** Implementation and readiness engagements can earn revenue before the hosted control plane exists and reveal which repeatable features customers will pay for.
+5. **Treat the suggested USD 19–499 monthly bands as experiments only.** They sit around observed developer/team price points, but AgentOps must validate its own willingness-to-pay and infrastructure economics with design partners before publishing a tariff.
 
 ## Revenue streams
 
