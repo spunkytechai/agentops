@@ -1,3 +1,4 @@
+export { OtlpHttpSpanExporter, type OtlpHttpTransport, type OtlpHttpSpanExporterOptions } from "./otlp.js";
 export { InMemoryRecorder, TraceContext, type EventRecorder, type RunEvent, type ToolEventType, type TraceContextOptions } from "./observability.js";
 export {
   ApprovalDeniedError,
