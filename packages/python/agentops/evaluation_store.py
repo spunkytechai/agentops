@@ -203,7 +203,7 @@ class SqliteEvaluationRunStore:
         """)
 
     def save(self, report: EvaluationReport, run_id: str | None = None) -> EvaluationRun:
-        identifier = run_id or str(uuid4())
+        identifier = str(uuid4()) if run_id is None else run_id
         _identity(identifier, "run_id")
         _identity(report.suite_name, "suite_name")
         payload = _encode(report)
