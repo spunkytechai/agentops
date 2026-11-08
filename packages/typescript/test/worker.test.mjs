@@ -44,7 +44,7 @@ test("terminates worker at its deadline", async () => {
 
 test("rejects malformed UTF-8 in worker responses", async () => {
   const worker = new WorkerProcess(process.execPath, ["-e",
-    "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const r=JSON.parse(s);const b=Buffer.from(JSON.stringify({protocol_version:1,request_id:r.request_id,result:'x'}));const i=b.indexOf(Buffer.from('\\\"x\\\"'));b[i+1]=255;process.stdout.write(Buffer.concat([b,Buffer.from('\\\\n')]))})"
+    "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const r=JSON.parse(s);const b=Buffer.from(JSON.stringify({protocol_version:1,request_id:r.request_id,result:'x'}));b[b.length-2]=255;process.stdout.write(Buffer.concat([b,Buffer.from([10])]))})"
   ]);
   await assert.rejects(worker.execute("tool", {}), WorkerExecutionError);
 });
