@@ -64,6 +64,8 @@
 - The exporter uses an injected transport and adds no mandatory networking or OpenTelemetry SDK dependency. The host transport owns TLS, authentication, timeout, and response validation.
 - Pending and completed spans are bounded; overflow increments a dropped-span counter. Failed batches are retained and retried up to the configured attempt limit; if all attempts fail, `flush()` raises and leaves the batch queued.
 - Python `flush()` is synchronous; TypeScript `flush()` is asynchronous. Run flushing in a worker or controlled shutdown hook, not on a latency-sensitive execution path.
+- CI GitHub Actions are pinned to full commit SHAs and checkout credentials are not persisted. Python build backend and CI build tooling are exact-version pinned; Dependabot checks GitHub Actions, npm, and pip updates weekly.
+- The TypeScript package currently has no committed npm lockfile, so transitive npm resolution is not yet reproducible. Track this as a release-readiness gap in [issue #30](https://github.com/spunkytechai/agentops/issues/30); do not switch to or claim `npm ci` until the lockfile is committed and CI passes.
 - This release does not implement automatic instrumentation, metrics, logs, sampling, `traceparent` header parsing, or a complete OpenTelemetry SDK.
 
 ## Subprocess worker boundary
