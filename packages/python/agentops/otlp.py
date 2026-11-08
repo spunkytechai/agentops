@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import OrderedDict, deque
 from datetime import datetime, timezone
 import json
+import math
 import re
 from threading import RLock
 from typing import Callable, Mapping
@@ -69,6 +70,14 @@ class OtlpHttpSpanExporter:
             if event.trace_id is None or event.span_id is None:
                 return
             if (
+                event.event_type not in {"tool.started", "tool.succeeded", "tool.failed"}
+                or not isinstance(event.timestamp, datetime)
+                or event.timestamp.tzinfo is None
+                or event.timestamp.utcoffset() is None
+            ):
+                self.dropped_spans += 1
+                return
+            if (
                 not isinstance(event.trace_id, str) or not _TRACE_ID.fullmatch(event.trace_id)
                 or event.trace_id == "0" * 32
                 or not isinstance(event.span_id, str) or not _SPAN_ID.fullmatch(event.span_id)
@@ -92,7 +101,15 @@ class OtlpHttpSpanExporter:
                 if len(self._pending) + len(self._queue) >= self._max_queue_size:
                     self.dropped_spans += 1
                     return
-                self._pending[key] = event
+                self._pending[key] = RunEvent(
+                    event_type="tool.started",
+                    run_id=event.run_id,
+                    tool_name=event.tool_name,
+                    timestamp=event.timestamp,
+                    trace_id=event.trace_id,
+                    span_id=event.span_id,
+                    parent_span_id=event.parent_span_id,
+                )
                 return
             started = self._pending.pop(key, None)
             if started is None:
@@ -101,6 +118,7 @@ class OtlpHttpSpanExporter:
                 not self._metadata_within_limit(started.run_id)
                 or not self._metadata_within_limit(started.tool_name)
                 or not self._metadata_within_limit(event.error_type, optional=True)
+                or not self._duration_within_limit(event.duration_ms)
             ):
                 self.dropped_spans += 1
                 return
@@ -117,6 +135,17 @@ class OtlpHttpSpanExporter:
         try:
             return len(value.encode("utf-8")) <= self._max_attribute_bytes
         except UnicodeEncodeError:
+            return False
+
+    @staticmethod
+    def _duration_within_limit(value: object) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            return False
+        try:
+            return math.isfinite(value) and value <= 9_007_199_254_740_991
+        except OverflowError:
             return False
 
     @staticmethod
