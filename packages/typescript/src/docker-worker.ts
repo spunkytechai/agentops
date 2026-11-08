@@ -56,7 +56,7 @@ export class DockerWorker {
     private readonly image: string,
     options: DockerWorkerOptions = {},
   ) {
-    if (!image || image.startsWith("-") || /\\s/.test(image)) {
+    if (!image || image.startsWith("-") || /\s/.test(image)) {
       throw new TypeError("image must be a non-empty Docker image reference without whitespace");
     }
     this.dockerExecutable = options.dockerExecutable ?? "docker";
