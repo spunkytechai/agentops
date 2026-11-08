@@ -55,6 +55,27 @@ class EvaluationEngineTests(unittest.TestCase):
         report = await suite.run_async(operation)
         self.assertEqual(report.weighted_score, 1.0)
 
+    def test_async_metric_receives_a_copy_of_expected_data(self):
+        import asyncio
+
+        expected = {"nested": {"value": 7}}
+
+        class MutatingMetric:
+            name = "mutating"
+
+            def score(self, actual_expected, actual):
+                actual_expected["nested"]["value"] = 999
+                return 1.0
+
+        case = EvaluationCase("one", {"input": True}, expected)
+        suite = EvaluationSuite("async-copy", (case,), metric=MutatingMetric())
+
+        async def operation(value):
+            return value
+
+        asyncio.run(suite.run_async(operation))
+        self.assertEqual(case.expected, expected)
+
     def test_case_exceptions_are_recorded_without_error_messages(self):
         suite = EvaluationSuite("errors", (EvaluationCase("boom", "input", "expected"),))
         report = suite.run(lambda _: (_ for _ in ()).throw(RuntimeError("contains secret")))
