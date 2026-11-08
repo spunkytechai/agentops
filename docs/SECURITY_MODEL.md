@@ -86,3 +86,7 @@ The threat model is preliminary and will evolve with the runtime and integration
 ## Evaluation data handling
 
 Evaluation cases and reports are application data, not a secure dataset repository. Inputs are passed to the operation callback and may contain sensitive information; the host owns dataset access control, retention, and storage. The engine records operation exception class names only, never exception messages, prompts, or actual outputs in the report. Custom metrics execute in-process and must be treated as trusted code. Exact-match inputs are restricted to finite JSON-compatible values; integer values must be safe across JavaScript and Python.
+
+## Evaluation history and baselines
+
+The evaluation run store persists only aggregate reports and per-case score metadata. It does not persist dataset inputs, expected values, model outputs, prompts, or exception messages. Run IDs are unique and baseline pointers are suite-scoped; callers cannot set a baseline to a run belonging to a different suite. SQLite files still require host-level filesystem permissions, backup, retention, and encryption controls. The store is not a tamper-evident audit log.
