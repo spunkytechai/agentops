@@ -14,7 +14,7 @@ authors = [{ name = "Spunky Tech" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["ruff==0.17.4"]
+dev = ["ruff==0.17.5"]
 
 [tool.setuptools]
 package-dir = {"" = "packages/python"}
